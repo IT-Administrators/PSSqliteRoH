@@ -2,3 +2,15 @@
 
 TODO
 Backup.txt
+AGENTS.md
+
+# Build and publish artifacts
+bin/
+obj/
+**/bin/
+**/obj/
+/lib/
+/dist/
+
+# PowerShell test data
+data/
