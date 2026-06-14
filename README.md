@@ -10,10 +10,10 @@ A powershell cross platform module to manage sqlite databases.
 1. [Introduction](#introduction)
 1. [Install](#install)
     1. [Prerequisites](#prerequisites)
-    1. [Step 1: Clone or Download the Repository](#step-1-clone-or-download-the-repository)
-    1. [Step 2: Import the Module](#step-2-import-the-module)
-    1. [Step 2: Verify Installation](#step-2-verify-installation)
-    1. [Build](#build)
+        1. [Step 1: Clone or Download the Repository](#step-1-clone-or-download-the-repository)
+        1. [Step 2: Import the Module](#step-2-import-the-module)
+        1. [Step 3: Verify Installation](#step-3-verify-installation)
+1. [Build](#build)
 1. [How to use](#how-to-use)
 1. [Documentation](#documentation)
 1. [License](#license)
@@ -30,7 +30,7 @@ PSSqliteRoH is a cross-platform PowerShell module that wraps a .NET (netstandard
 - **PowerShell**: Windows PowerShell 5.1+ or PowerShell Core 7.0+
 - **Operating Systems**: Windows, Linux
 
-### Step 1: Clone or Download the Repository
+#### Step 1: Clone or Download the Repository
 
 Using Git:
 ```powershell
@@ -45,14 +45,14 @@ Expand-Archive -Path ".\PSSqliteRoH.zip"
 cd PSSqliteRoH-main
 ```
 
-### Step 2: Import the Module
+#### Step 2: Import the Module
 
 **Import from current directory**
 ```powershell
 Import-Module -Path ".\PSSqliteRoH.psm1" -Force -Verbose
 ```
 
-### Step 2: Verify Installation
+#### Step 3: Verify Installation
 
 ```powershell
 # Check if the module is loaded
@@ -65,7 +65,7 @@ Get-Command -Module PSSqliteRoH
 Get-Help <FunctionName> -Full
 ```
 
-### Build
+## Build
 
 If you want to rebuild the helper library yourself:
 
