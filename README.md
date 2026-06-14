@@ -1,48 +1,88 @@
+<!-- toc:insertAfterHeading= PSSqliteRoH-->
+<!-- toc:insertAfterHeadingOffset=3 -->
+
 # PSSqliteRoH
 
-A cross-platform .NET PowerShell module for managing SQLite databases.
+A powershell cross platform module to manage sqlite databases.
 
-## Build
+## Table of Contents
 
-The module already ships with the cross-platform helper library in `lib/netstandard2.0`, including native SQLite binaries for Windows, Linux, and macOS. No runtime-specific compilation is required.
+1. [Introduction](#introduction)
+1. [Install](#install)
+    1. [Prerequisites](#prerequisites)
+    1. [Step 1: Clone or Download the Repository](#step-1-clone-or-download-the-repository)
+    1. [Step 2: Import the Module](#step-2-import-the-module)
+    1. [Step 2: Verify Installation](#step-2-verify-installation)
+    1. [Build](#build)
+1. [How to use](#how-to-use)
+1. [Documentation](#documentation)
+1. [License](#license)
 
-If you want to rebuild the helper library, use `dotnet build`:
+## Introduction
+
+PSSqliteRoH is a cross-platform PowerShell module that wraps a .NET (netstandard2.0) helper library to manage SQLite databases. It provides simple PowerShell functions for creating/opening databases and running SQL queries while reusing a small C# helper library for connection management.
+
+## Install
+
+
+### Prerequisites
+
+- **PowerShell**: Windows PowerShell 5.1+ or PowerShell Core 7.0+
+- **Operating Systems**: Windows, Linux
+
+### Step 1: Clone or Download the Repository
+
+Using Git:
+```powershell
+git clone "https://github.com/IT-Administrators/PSSqliteRoH.git"
+cd PSSqliteRoH
+```
+
+Or download the ZIP archive:
+```powershell
+Invoke-WebRequest -Uri "https://github.com/IT-Administrators/PSSqliteRoH/archive/refs/heads/main.zip" -OutFile "PSSqliteRoH.zip"
+Expand-Archive -Path ".\PSSqliteRoH.zip"
+cd PSSqliteRoH-main
+```
+
+### Step 2: Import the Module
+
+**Import from current directory**
+```powershell
+Import-Module -Path ".\PSSqliteRoH.psm1" -Force -Verbose
+```
+
+### Step 2: Verify Installation
 
 ```powershell
+# Check if the module is loaded
+Get-Module PSSqliteRoH
+
+# View available commands
+Get-Command -Module PSSqliteRoH
+
+# Get detailed help
+Get-Help <FunctionName> -Full
+```
+
+### Build
+
+If you want to rebuild the helper library yourself:
+
+```powershell
+# PowerShell
+dotnet build src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
+
+# Bash
 dotnet build src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
 ```
 
-```bash
-dotnet build src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
-```
+## How to use
 
-When the module is imported, `PSSqliteRoH.psm1` loads the helper assembly directly from `lib/netstandard2.0`.
-
-## Tests
-
-Run the .NET unit tests with xUnit:
-
-```powershell
-dotnet test src/PSSqliteRoH.Sqlite.Tests/PSSqliteRoH.Sqlite.Tests.csproj
-```
-
-Run the PowerShell module tests with Pester:
-
-```powershell
-Invoke-Pester -Path .\tests\PSSqliteRoH.Tests.ps1
-```
-
-## Getting started
-
-Import the module from the repository root:
+Import the module and create/open a database:
 
 ```powershell
 Import-Module .\PSSqliteRoH.psd1
-```
-
-Create and open a SQLite database:
-
-```powershell
 $database = New-SqliteDatabase -Path './data/example.db' -Create -PassThru
 ```
 
@@ -52,70 +92,49 @@ Open an existing database:
 $database = New-SqliteDatabase -Path './data/example.db' -PassThru
 ```
 
-Open using a custom connection string:
+Open with a custom connection string:
 
 ```powershell
 $database = New-SqliteDatabase -ConnectionString 'Data Source=./data/example.db;Mode=ReadWriteCreate' -PassThru
 ```
 
-The returned object is a `Microsoft.Data.Sqlite.SqliteConnection` instance that can be used to execute SQL commands.
-
-## Examples: Invoke-SqliteQuery
-
-Below are common ways to call `Invoke-SqliteQuery` using each parameter set. Import the module first:
+Run SQL using `Invoke-SqliteQuery` (examples):
 
 ```powershell
-Import-Module .\PSSqliteRoH.psd1
+# Create table
+Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Path ./data/example.db -Create | Out-Null
+
+# Insert
+Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Alice');" -Path ./data/example.db | Out-Null
+
+# Select
+Invoke-SqliteQuery -Query 'SELECT id, name FROM users ORDER BY id;' -Path ./data/example.db
+
+# Read-only mode (prevents writes where supported)
+Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Path ./data/example.db -ReadOnly
 ```
 
-- Using `-Path` to create a new database and run DDL/DML:
+## Documentation
 
-```powershell
-$dbPath = Join-Path $env:TEMP "example_create.db"
-Remove-Item -Path $dbPath -ErrorAction SilentlyContinue
+- Module entry: [PSSqliteRoH.psm1][pssqliteroh]
+- C# helper library: [src/PSSqliteRoH.Sqlite/SqliteDatabase.cs][sqlitedatabase]
+- Tests: [src/PSSqliteRoH.Sqlite.Tests/][pssqliteroh.sqlite.tests]
+- PowerShell tests: [tests/PSSqliteRoH.Tests.ps1][pssqliteroh.tests.ps1]
 
-# Create table in a new DB
-Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Path $dbPath -Create | Out-Null
+For detailed technical documentation including:
+- Complete class and method reference
+- Architecture overview
+- Development guide
 
-# Insert rows
-Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Alice');" -Path $dbPath | Out-Null
-Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Bob');" -Path $dbPath | Out-Null
+See the [docs][Docs] folder.
 
-# Select rows
-Invoke-SqliteQuery -Query 'SELECT id, name FROM users ORDER BY id;' -Path $dbPath
-```
+## License
 
-- Using `-Path` with an existing database (no `-Create`):
+[MIT][License]
 
-```powershell
-$existing = 'C:\path\to\existing.db'
-Invoke-SqliteQuery -Query 'SELECT name FROM users;' -Path $existing
-```
-
-- Using an open `-Connection` object (reuse an open `SqliteConnection`):
-
-```powershell
-$conn = New-SqliteDatabase -Path $dbPath -PassThru
-Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Charlie');" -Connection $conn | Out-Null
-Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Connection $conn
-$conn.Close()
-```
-
-- Using a `-ConnectionString` directly:
-
-```powershell
-$cs = 'Data Source=./data/example.db;Mode=ReadWriteCreate'
-Invoke-SqliteQuery -Query 'SELECT sqlite_version();' -ConnectionString $cs
-```
-
-- Read-only mode: open with `-ReadOnly` or a connection string with `Mode=ReadOnly` to prevent modifications.
-
-```powershell
-# Open read-only by Path
-Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Path $dbPath -ReadOnly
-
-# Attempts to write will be prevented (PRAGMA query_only is set when possible)
-{ Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Eve');" -Path $dbPath -ReadOnly } | Should -Throw
-```
-
-These examples show how to create a database, run queries, reuse connections, and enforce read-only behavior.
+[pssqliteroh]: ./PSSqliteRoH.psm1
+[sqlitedatabase]: ./src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
+[pssqliteroh.sqlite.tests]: ./src/PSSqliteRoH.Sqlite.Tests/
+[pssqliteroh.tests.ps1]: ./tests/PSSqliteRoH.Tests.ps1
+[License]: ./LICENSE
+[Docs]: ./docs
