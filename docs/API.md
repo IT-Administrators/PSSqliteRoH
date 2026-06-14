@@ -60,13 +60,13 @@ This document summarizes the main classes, functions, and methods used by the pr
   - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 - `Invoke-SqliteQuery` (function)
-  - Purpose: Runs SQL statements against a SQLite database using one of three parameter sets: `-Path`, `-ConnectionString`, or `-Connection` (existing open connection).
-  - Behavior: For SELECT queries returns rows as `PSCustomObject` instances; for non-query statements returns a small PSCustomObject with `Query` and `RowsAffected`. When the cmdlet creates the connection it closes and disposes it after the operation.
+  - Purpose: Runs SQL statements against a SQLite database using a single connection context object returned by `Get-SqliteConnection`.
+  - Behavior: For SELECT queries returns rows as `PSCustomObject` instances; for non-query statements returns a small PSCustomObject with `Query` and `RowsAffected`. It uses the provided connection and does not close or dispose it.
   - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 - `Get-SqliteVersion` (function)
   - Purpose: Returns the SQLite engine version for a current database using `SELECT sqlite_version()`.
-  - Behavior: Supports the same parameter sets as `Invoke-SqliteQuery` (`-Path`, `-ConnectionString`, `-Connection`) and closes any connection it creates internally.
+  - Behavior: Accepts a connection context object returned by `Get-SqliteConnection` and leaves the connection open.
   - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 ## Tests

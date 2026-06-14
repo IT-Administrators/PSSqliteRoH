@@ -54,11 +54,13 @@ Describe 'PSSqliteRoH PowerShell module' {
             $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_InvokeQuery_Test_$(New-Guid).db"
             Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
 
-            $createResult = Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Path $testDbPath -Create
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            $createResult = Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Database $db
 
             $createResult | Should -BeOfType 'System.Management.Automation.PSCustomObject'
             $createResult.Query | Should -Be 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);'
             $createResult.RowsAffected | Should -Be 0
+            $db.Connection.Close()
         }
 
         It 'executes SELECT SQL and returns query rows' {
@@ -68,11 +70,13 @@ Describe 'PSSqliteRoH PowerShell module' {
             $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_InvokeQuery_Test_$(New-Guid).db"
             Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
 
-            Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Path $testDbPath -Create | Out-Null
-            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Alice');" -Path $testDbPath | Out-Null
-            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Bob');" -Path $testDbPath | Out-Null
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
+            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Alice');" -Database $db | Out-Null
+            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Bob');" -Database $db | Out-Null
 
-            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table ORDER BY id;' -Path $testDbPath
+            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table ORDER BY id;' -Database $db
+            $db.Connection.Close()
 
             $rows | Should -HaveCount 2
             $rows[0].id | Should -Be 1
@@ -88,27 +92,30 @@ Describe 'PSSqliteRoH PowerShell module' {
             $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_CRUD_Test_$(New-Guid).db"
             Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
 
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+
             # Create table
-            Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Path $testDbPath -Create | Out-Null
+            Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
 
             # Insert rows
-            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Alice');" -Path $testDbPath | Out-Null
-            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Bob');" -Path $testDbPath | Out-Null
+            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Alice');" -Database $db | Out-Null
+            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Bob');" -Database $db | Out-Null
 
             # Read and verify
-            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table ORDER BY id;' -Path $testDbPath
+            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table ORDER BY id;' -Database $db
             $rows | Should -HaveCount 2
 
             # Update and verify
-            Invoke-SqliteQuery -Query "UPDATE test_table SET name = 'Alicia' WHERE name = 'Alice';" -Path $testDbPath | Out-Null
-            $row = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table WHERE id = 1;' -Path $testDbPath
+            Invoke-SqliteQuery -Query "UPDATE test_table SET name = 'Alicia' WHERE name = 'Alice';" -Database $db | Out-Null
+            $row = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table WHERE id = 1;' -Database $db
             $row.name | Should -Be 'Alicia'
 
             # Delete and verify
-            Invoke-SqliteQuery -Query "DELETE FROM test_table WHERE name = 'Bob';" -Path $testDbPath | Out-Null
-            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table ORDER BY id;' -Path $testDbPath
+            Invoke-SqliteQuery -Query "DELETE FROM test_table WHERE name = 'Bob';" -Database $db | Out-Null
+            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table ORDER BY id;' -Database $db
             $rows | Should -HaveCount 1
             $rows[0].name | Should -Be 'Alicia'
+            $db.Connection.Close()
         }
 
         It 'prevents modifications when opened ReadOnly but allows reads' {
@@ -119,15 +126,19 @@ Describe 'PSSqliteRoH PowerShell module' {
             Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
 
             # Prepare DB with one row
-            Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Path $testDbPath -Create | Out-Null
-            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Alice');" -Path $testDbPath | Out-Null
+            $prepDb = Get-SqliteConnection -Path $testDbPath -Create
+            Invoke-SqliteQuery -Query 'CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT);' -Database $prepDb | Out-Null
+            Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Alice');" -Database $prepDb | Out-Null
+            $prepDb.Connection.Close()
 
             # Read-only should allow SELECT
-            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table;' -Path $testDbPath -ReadOnly
+            $roDb = Get-SqliteConnection -Path $testDbPath -ReadOnly
+            $rows = Invoke-SqliteQuery -Query 'SELECT id, name FROM test_table;' -Database $roDb
             $rows | Should -HaveCount 1
 
             # Read-only should prevent INSERT (PRAGMA query_only enforced)
-            { Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Charlie');" -Path $testDbPath -ReadOnly } | Should -Throw
+            { Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Charlie');" -Database $roDb } | Should -Throw
+            $roDb.Connection.Close()
         }
     }
 
@@ -146,8 +157,9 @@ Describe 'PSSqliteRoH PowerShell module' {
             $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetVersion_Test_$(New-Guid).db"
             Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
 
-            New-SqliteDatabase -Path $testDbPath -Create -PassThru | Out-Null
-            $version = Get-SqliteVersion -Path $testDbPath
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            $version = Get-SqliteVersion -Database $db
+            $db.Connection.Close()
 
             $version | Should -Not -BeNullOrEmpty
             $version | Should -BeOfType 'System.String'
@@ -160,9 +172,9 @@ Describe 'PSSqliteRoH PowerShell module' {
             $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetVersion_Conn_Test_$(New-Guid).db"
             Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
 
-            $connection = New-SqliteDatabase -Path $testDbPath -Create -PassThru
-            $version = Get-SqliteVersion -Connection $connection
-            $connection.Close()
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            $version = Get-SqliteVersion -Database $db
+            $db.Connection.Close()
 
             $version | Should -Not -BeNullOrEmpty
             $version | Should -BeOfType 'System.String'

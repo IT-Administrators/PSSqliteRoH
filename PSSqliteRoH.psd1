@@ -9,7 +9,7 @@
     Description = 'Cross-platform PowerShell module for managing SQLite databases using .NET.'
     PowerShellVersion = '3.0'
     CompatiblePSEditions = @('Desktop','Core')
-    FunctionsToExport = @('New-SqliteDatabase','Invoke-SqliteQuery','Get-SqliteVersion')
+    FunctionsToExport = @('New-SqliteDatabase','Invoke-SqliteQuery','Get-SqliteVersion','Get-SqliteConnection')
     FileList = @('PSSqliteRoH.psm1')
     PrivateData = @{
         PSData = @{

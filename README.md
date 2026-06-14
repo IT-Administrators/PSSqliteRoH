@@ -79,39 +79,41 @@ dotnet build src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
 
 ## How to use
 
-Import the module and create/open a database:
+Import the module and create/open a database connection context:
 
 ```powershell
 Import-Module .\PSSqliteRoH.psd1
-$database = New-SqliteDatabase -Path './data/example.db' -Create -PassThru
+$db = Get-SqliteConnection -Path './data/example.db' -Create
 ```
 
-Open an existing database:
+Open an existing database connection context:
 
 ```powershell
-$database = New-SqliteDatabase -Path './data/example.db' -PassThru
+$db = Get-SqliteConnection -Path './data/example.db'
 ```
 
 Open with a custom connection string:
 
 ```powershell
-$database = New-SqliteDatabase -ConnectionString 'Data Source=./data/example.db;Mode=ReadWriteCreate' -PassThru
+$db = Get-SqliteConnection -ConnectionString 'Data Source=./data/example.db;Mode=ReadWriteCreate'
 ```
 
 Run SQL using `Invoke-SqliteQuery` (examples):
 
 ```powershell
 # Create table
-Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Path ./data/example.db -Create | Out-Null
+Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
 
 # Insert
-Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Alice');" -Path ./data/example.db | Out-Null
+Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Alice');" -Database $db | Out-Null
 
 # Select
-Invoke-SqliteQuery -Query 'SELECT id, name FROM users ORDER BY id;' -Path ./data/example.db
+Invoke-SqliteQuery -Query 'SELECT id, name FROM users ORDER BY id;' -Database $db
 
 # Read-only mode (prevents writes where supported)
-Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Path ./data/example.db -ReadOnly
+$roDb = Get-SqliteConnection -Path ./data/example.db -ReadOnly
+Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Database $roDb
+$roDb.Connection.Close()
 ```
 
 ## Get SQLite version
@@ -119,7 +121,7 @@ Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Path ./data/example.db 
 Use `Get-SqliteVersion` to print the SQLite engine version for the current database.
 
 ```powershell
-Get-SqliteVersion -Path ./data/example.db
+Get-SqliteVersion -Database $db
 ```
 
 ## Documentation

@@ -320,36 +320,12 @@ function Invoke-SqliteQuery {
     .PARAMETER Query
         Command to run against the database.
 
-    .PARAMETER Path
-        Filepath of the database.
-
-    .PARAMETER ConnectionString
-        Connectionstring containing database specifications e.g. 'Data Source=./data/example.db;Mode=ReadWriteCreate'.
-
-    .PARAMETER Connection
-        Existing connection object.
-
-    .PARAMETER Create
-        Create database of not exist.
-
-    .PARAMETER ReadOnly
-        Open database in readonly mode. No changes to database possible.
+    .PARAMETER Database
+        Connection context returned by Get-SqliteConnection. This object must contain a valid Connection property.
 
     .EXAMPLE
-        Create table in a new DB
-        Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Path $dbPath -Create | Out-Null
-
-        Insert rows
-        Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Alice');" -Path $dbPath | Out-Null
-
-        Select rows
-        Invoke-SqliteQuery -Query 'SELECT id, name FROM users ORDER BY id;' -Path $dbPath
-
-        Output:
-
-        name  id
-        ----  --
-        Alice  1
+        $db = Get-SqliteConnection -Path './data/example.db' -Create
+        Invoke-SqliteQuery -Query 'SELECT id, name FROM users ORDER BY id;' -Database $db
 
     .NOTES
         Written and testet in PowerShell Core, compatible with Windows Powershell.
@@ -357,7 +333,7 @@ function Invoke-SqliteQuery {
     .LINK
         https://github.com/IT-Administrators/PSSqliteRoH
     #>
-    [CmdletBinding(DefaultParameterSetName = 'Path')]
+    [CmdletBinding()]
     param (
         # The SQL query to execute (no validation performed).
         [Parameter(
@@ -366,36 +342,14 @@ function Invoke-SqliteQuery {
         HelpMessage = "Command to run against the database.")]
         [string]$Query,
 
-        # Open or create a database by file path.
+        # Connection context returned by Get-SqliteConnection.
         [Parameter(
-        Mandatory = $true, 
-        ParameterSetName = 'Path',
-        HelpMessage = "Filepath of the new database.")]
-        [string]$Path,
-
-        # Use an explicit SQLite connection string instead of a file path.
-        [Parameter(
-        Mandatory = $true, 
-        ParameterSetName = 'ConnectionString',
-        HelpMessage = "Explicit SQLite connection string instead of a file path e.g. 'Data Source=./data/example.db;Mode=ReadWriteCreate'.")]
-        [string]$ConnectionString,
-
-        # Supply an existing open connection object.
-        [Parameter(
-        Mandatory = $true, 
-        ParameterSetName = 'Connection',
-        HelpMessage = "Existing connection object.")]
-        [System.Data.Common.DbConnection]$Connection,
-
-        # Create the database file if it does not already exist (only when using -Path).
-        [Parameter(
-        HelpMessage = "Create database if not exists.")]
-        [switch]$Create,
-
-        # Open the database in read-only mode (only when using -Path).
-        [Parameter(
-        HelpMessage = "Open database in read-only mode. No changes possible.")]
-        [switch]$ReadOnly
+        Mandatory = $true,
+        Position = 1,
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = 'Connection context returned by Get-SqliteConnection.')]
+        [object]$Database
     )
 
     begin {
@@ -406,22 +360,25 @@ function Invoke-SqliteQuery {
     }
 
     process {
-        $connectionParams = @{
-            Create   = $Create.IsPresent
-            ReadOnly = $ReadOnly.IsPresent
+        if (-not $Database) {
+            throw 'A valid database connection context must be provided via -Database.'
         }
 
-        if ($PSCmdlet.ParameterSetName -eq 'Path') {
-            $connectionParams.Path = $Path
-        } elseif ($PSCmdlet.ParameterSetName -eq 'ConnectionString') {
-            $connectionParams.ConnectionString = $ConnectionString
+        if ($Database -is [System.Management.Automation.PSCustomObject] -and $Database.PSObject.Properties.Name -contains 'Connection') {
+            $connection = $Database.Connection
+        } elseif ($Database -is [System.Data.Common.DbConnection]) {
+            $connection = $Database
         } else {
-            $connectionParams.Connection = $Connection
+            throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
         }
 
-        $connectionContext = Get-SqliteConnection @connectionParams
-        $connection = $connectionContext.Connection
-        $createdConnection = $connectionContext.Created
+        if (-not $connection) {
+            throw 'The provided -Database object does not contain a valid Connection.'
+        }
+
+        if ($connection.State -ne 'Open') {
+            $connection.Open()
+        }
 
         $command = $connection.CreateCommand()
         $command.CommandText = $Query
@@ -449,11 +406,6 @@ function Invoke-SqliteQuery {
                 RowsAffected  = $affected
             }
         }
-        # Remove connection and close db.
-        if ($createdConnection -and $connection) {
-            $connection.Close()
-            $connection.Dispose()
-        }
     }
 }
 
@@ -466,29 +418,12 @@ function Get-SqliteVersion {
         Get the sqlite version of the specified database. This might be important as not all sqlite commands
         are compatible with all versions. 
 
-    .PARAMETER Path
-        Filepath of the database.
-
-    .PARAMETER ConnectionString
-        Connectionstring containing database specifications e.g. 'Data Source=./data/example.db;Mode=ReadWriteCreate'.
-
-    .PARAMETER Connection
-        Existing connection object.
-
-    .PARAMETER Create
-        Create database of not exist.
-
-    .PARAMETER ReadOnly
-        Open database in readonly mode. No changes to database possible.
+    .PARAMETER Database
+        Connection context returned by Get-SqliteConnection. This object must contain a valid Connection property.
 
     .EXAMPLE
-        Get the sqlite version of the specified database.
-
-        Get-SqliteVersion -Path ./data/example.db
-
-        Output:
-
-        3.40.1
+        $db = Get-SqliteConnection -Path ./data/example.db -Create
+        Get-SqliteVersion -Database $db
 
     .NOTES
         Written and testet in PowerShell Core, compatible with Windows Powershell.
@@ -496,41 +431,16 @@ function Get-SqliteVersion {
     .LINK
         https://github.com/IT-Administrators/PSSqliteRoH
     #>
-    [CmdletBinding(DefaultParameterSetName = 'Path')]
+    [CmdletBinding()]
     param (
-        # File path of the database to inspect.
+        # Connection context returned by Get-SqliteConnection.
         [Parameter(
         Mandatory = $true,
         Position = 0,
-        ParameterSetName = 'Path',
         ValueFromPipeline = $true,
         ValueFromPipelineByPropertyName = $true,
-        HelpMessage = 'Filepath of the database.')]
-        [string]$Path,
-
-        # Explicit SQLite connection string.
-        [Parameter(
-        Mandatory = $true,
-        ParameterSetName = 'ConnectionString',
-        HelpMessage = 'Explicit SQLite connection string instead of a file path e.g. "Data Source=./data/example.db;Mode=ReadWriteCreate".')]
-        [string]$ConnectionString,
-
-        # Existing open connection object.
-        [Parameter(
-        Mandatory = $true,
-        ParameterSetName = 'Connection',
-        HelpMessage = 'Existing connection object.')]
-        [System.Data.Common.DbConnection]$Connection,
-
-        # Create the database file if it does not already exist (only when using -Path).
-        [Parameter(
-        HelpMessage = 'Create the database file if it does not already exist.')]
-        [switch]$Create,
-
-        # Open the database in read-only mode (only when using -Path).
-        [Parameter(
-        HelpMessage = 'Open the database in read-only mode. This prevents modifications when possible.')]
-        [switch]$ReadOnly
+        HelpMessage = 'Connection context returned by Get-SqliteConnection.')]
+        [object]$Database
     )
 
     begin {
@@ -540,31 +450,29 @@ function Get-SqliteVersion {
     }
 
     process {
-        $connectionParams = @{
-            Create   = $Create.IsPresent
-            ReadOnly = $ReadOnly.IsPresent
+        if (-not $Database) {
+            throw 'A valid database connection context must be provided via -Database.'
         }
 
-        if ($PSCmdlet.ParameterSetName -eq 'Path') {
-            $connectionParams.Path = $Path
-        } elseif ($PSCmdlet.ParameterSetName -eq 'ConnectionString') {
-            $connectionParams.ConnectionString = $ConnectionString
+        if ($Database -is [System.Management.Automation.PSCustomObject] -and $Database.PSObject.Properties.Name -contains 'Connection') {
+            $connection = $Database.Connection
+        } elseif ($Database -is [System.Data.Common.DbConnection]) {
+            $connection = $Database
         } else {
-            $connectionParams.Connection = $Connection
+            throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
         }
 
-        $connectionContext = Get-SqliteConnection @connectionParams
-        $connection = $connectionContext.Connection
-        $createdConnection = $connectionContext.Created
+        if (-not $connection) {
+            throw 'The provided -Database object does not contain a valid Connection.'
+        }
+
+        if ($connection.State -ne 'Open') {
+            $connection.Open()
+        }
 
         $command = $connection.CreateCommand()
         $command.CommandText = 'SELECT sqlite_version();'
         $version = $command.ExecuteScalar()
-
-        if ($createdConnection -and $connection) {
-            $connection.Close()
-            $connection.Dispose()
-        }
 
         Write-Output $version
     }
