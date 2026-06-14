@@ -67,7 +67,6 @@ namespace PSSqliteRoH.Sqlite
     /// 
     /// <para>
     /// This class is "static", which means you don't create an instance of it - you just call its methods directly.
-    /// Think of it as a toolbox where the tools are always available without needing to build the toolbox first.
     /// </para>
     /// 
     /// <para>
@@ -103,7 +102,7 @@ namespace PSSqliteRoH.Sqlite
             }
             catch (Exception ex)
             {
-                // Wrap the underlying error in a more descriptive message for the caller.
+                // Wrap the underlying error in a more descriptive message.
                 throw new InvalidOperationException($"Failed to initialize the SQLite native provider. {ex}", ex);
             }
         }
@@ -173,28 +172,25 @@ namespace PSSqliteRoH.Sqlite
             var absolutePath = Path.GetFullPath(databasePath);
             var directory = Path.GetDirectoryName(absolutePath);
 
-            // Ensure we successfully extracted the directory from the path.
+            // Ensure successfull extraction of path from directory.
             if (string.IsNullOrWhiteSpace(directory))
             {
                 throw new ArgumentException("Unable to determine the directory for the database path.", nameof(databasePath));
             }
 
-            // If the caller wants us to create the database and the directory doesn't exist, create it now.
-            // This prevents errors when trying to create a database in a folder that hasn't been created yet.
+            // If the caller wants to create the database and the directory doesn't exist, create it.
             if (createIfNotExists && !Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }
 
-            // If the caller doesn't want us to create the database, verify the file already exists.
-            // Otherwise, throw an error explaining the problem.
+            // Verify file exists if create is not specified. Otherwise throw error.
             if (!createIfNotExists && !File.Exists(absolutePath))
             {
                 throw new FileNotFoundException($"SQLite database file not found: {absolutePath}", absolutePath);
             }
 
             // Create a builder object that helps construct a properly formatted connection string.
-            // Think of SqliteConnectionStringBuilder as a form with fields you fill in, then it creates the final text.
             var builder = new SqliteConnectionStringBuilder
             {
                 // Set the path to the database file.
@@ -219,8 +215,8 @@ namespace PSSqliteRoH.Sqlite
         /// Creates a SQLite database connection object from a connection string.
         /// 
         /// <para>
-        /// A connection object is what you actually use to run SQL commands (queries) against the database.
-        /// Before using the connection, it must be opened (usually done automatically by PowerShell cmdlets that use this method).
+        /// A connection object is used to run SQL commands (queries) against the database.
+        /// Before using the connection, it must be opened.
         /// </para>
         /// 
         /// <para>
@@ -256,7 +252,7 @@ namespace PSSqliteRoH.Sqlite
         /// </exception>
         public static SqliteConnection CreateConnection(string connectionString)
         {
-            // Validate that the caller provided a real connection string.
+            // Validate connection string.
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new ArgumentException("A valid connection string is required.", nameof(connectionString));
