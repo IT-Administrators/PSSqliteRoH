@@ -18,7 +18,7 @@ This document summarizes the main classes, functions, and methods used by the pr
 
 - C# classes: 2 (public or internal helper classes)
 - C# methods (public/overrides/static): 4
-- PowerShell functions (exported): 3
+- PowerShell functions: 4 (3 exported public functions + 1 internal helper)
 
 
 ## C# — src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
@@ -51,6 +51,12 @@ This document summarizes the main classes, functions, and methods used by the pr
 - `New-SqliteDatabase` (function)
   - Purpose: PowerShell cmdlet that opens or creates a SQLite database. Accepts either a file `-Path` or an explicit `-ConnectionString`. Parameters: `-Create`, `-ReadOnly`, `-PassThru`.
   - Behavior: Builds a connection string via `SqliteDatabaseManager.BuildConnectionString`, creates the connection via `SqliteDatabaseManager.CreateConnection`, opens the connection, optionally sets `PRAGMA query_only = TRUE` for read-only mode, and returns either the raw connection (when `-PassThru`) or a PSCustomObject with `DatabasePath`, `ConnectionString`, and `Connection`.
+  - File reference: [PSSqliteRoH.psm1][pssqliteroh]
+
+- `Get-SqliteConnection` (internal helper function)
+  - Purpose: Resolves or opens a SQLite connection from one of three input sources: a database file path, an explicit connection string, or an existing `DbConnection` object.
+  - Behavior: When given `-Path`, it builds a connection string and opens a new connection; when given `-ConnectionString`, it opens a new connection directly; when given `-Connection`, it ensures the provided connection is open. Returns a PSCustomObject with `Connection` and `Created` properties.
+  - Notes: This helper function is not part of the normal exported public API when importing the module via `PSSqliteRoH.psd1`; it is only available when importing the `.psm1` file directly.
   - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 - `Invoke-SqliteQuery` (function)

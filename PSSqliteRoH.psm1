@@ -144,31 +144,60 @@ function New-SqliteDatabase {
 function Get-SqliteConnection {
     <#
     .SYNOPSIS
-        Handles the sqlite connection
+        Open or reuse a SQLite database connection.
 
     .DESCRIPTION
-        As you can specify a <Path/ConnectionString/Connection> parameter on each command, this function
-        handles the different connection types.
+        Returns a consistent connection context object for SQLite operations.
+        This helper resolves the connection from one of three input modes:
+        - a database file path
+        - an explicit SQLite connection string
+        - an existing open or closed DbConnection object
 
-        It is just a helper function and only exported when importing the .psm1 file instead of the .psd1 file.
+        When using a file path, the function can optionally create the database file
+        and open it in read-only mode. When given an existing connection, it ensures
+        the connection is opened before returning it.
+
+        This function is primarily used internally by other module commands and
+        is exported only when the module is imported from the `.psm1` file.
 
     .PARAMETER Path
-        Filepath of the database.
+        File path of the SQLite database file.
 
     .PARAMETER ConnectionString
-        Connectionstring containing database specifications e.g. 'Data Source=./data/example.db;Mode=ReadWriteCreate'.
+        Explicit SQLite connection string such as 'Data Source=./data/example.db;Mode=ReadWriteCreate'.
 
     .PARAMETER Connection
-        Existing connection object.
+        Existing DbConnection object to use. If the connection is not open, the function opens it.
 
     .PARAMETER Create
-        Create database of not exist.
+        Create the database file if it does not already exist (only valid when using -Path).
 
     .PARAMETER ReadOnly
-        Open database in readonly mode. No changes to database possible.
+        Open the database in read-only mode (only valid when using -Path).
+
+    .OUTPUTS
+        System.Management.Automation.PSCustomObject
+        Returns an object with the following properties:
+        - Connection: The opened DbConnection instance.
+        - Created: Boolean indicating whether the function opened the connection.
+
+    .EXAMPLE
+        $connectionContext = Get-SqliteConnection -Path './data/example.db' -Create
+
+        Returns a connection context for a file-based SQLite database and creates the file if needed.
+
+    .EXAMPLE
+        $connectionContext = Get-SqliteConnection -ConnectionString 'Data Source=./data/example.db;Mode=ReadWrite'
+
+        Opens a new SQLite connection using an explicit connection string.
+
+    .EXAMPLE
+        $connectionContext = Get-SqliteConnection -Connection $existingConnection
+
+        Reuses an existing connection object and ensures it is open.
 
     .NOTES
-        Written and testet in PowerShell Core, compatible with Windows Powershell.
+        Written and tested in PowerShell Core, compatible with Windows PowerShell.
 
     .LINK
         https://github.com/IT-Administrators/PSSqliteRoH
