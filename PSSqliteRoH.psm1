@@ -1,5 +1,17 @@
-# PowerShell module entrypoint for PSSqliteRoH.
-# This file loads the .NET helper library and exports functions.
+<#
+.SYNOPSIS
+    PowerShell module to manage Sqlite databases.
+
+.DESCRIPTION
+    This module import functions to manage sqlite databases with powershell.
+    It is a wrapper for the C# netstandard 2.0 library to make it cross platform compatible.
+
+.NOTES
+    Written and testet in PowerShell Core, compatible with Windows Powershell.
+
+.LINK
+    https://github.com/IT-Administrators/PSSqliteRoH
+#>
 
 $script:ModuleRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:LibFolder = Join-Path $script:ModuleRoot 'lib/netstandard2.0'
