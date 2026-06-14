@@ -9,7 +9,6 @@ bin/
 obj/
 **/bin/
 **/obj/
-/lib/
 /dist/
 
 # PowerShell test data
