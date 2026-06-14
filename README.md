@@ -8,7 +8,7 @@ A powershell cross platform module to manage sqlite databases.
 ## Table of Contents
 
 1. [Introduction](#introduction)
-1. [Install](#install)
+1. [Installation](#installation)
     1. [Prerequisites](#prerequisites)
         1. [Step 1: Clone or Download the Repository](#step-1-clone-or-download-the-repository)
         1. [Step 2: Import the Module](#step-2-import-the-module)
@@ -22,7 +22,7 @@ A powershell cross platform module to manage sqlite databases.
 
 PSSqliteRoH is a cross-platform PowerShell module that wraps a .NET (netstandard2.0) helper library to manage SQLite databases. It provides simple PowerShell functions for creating/opening databases and running SQL queries while reusing a small C# helper library for connection management.
 
-## Install
+## Installation
 
 
 ### Prerequisites
@@ -116,7 +116,7 @@ Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Database $roDb
 $roDb.Connection.Close()
 ```
 
-## Get SQLite version
+Get SQLite version:
 
 Use `Get-SqliteVersion` to print the SQLite engine version for the current database.
 
