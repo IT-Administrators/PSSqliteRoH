@@ -18,7 +18,7 @@ This document summarizes the main classes, functions, and methods used by the pr
 
 - C# classes: 2 (public or internal helper classes)
 - C# methods (public/overrides/static): 4
-- PowerShell functions (exported): 2
+- PowerShell functions (exported): 3
 
 
 ## C# — src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
@@ -58,6 +58,10 @@ This document summarizes the main classes, functions, and methods used by the pr
   - Behavior: For SELECT queries returns rows as `PSCustomObject` instances; for non-query statements returns a small PSCustomObject with `Query` and `RowsAffected`. When the cmdlet creates the connection it closes and disposes it after the operation.
   - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
+- `Get-SqliteVersion` (function)
+  - Purpose: Returns the SQLite engine version for a current database using `SELECT sqlite_version()`.
+  - Behavior: Supports the same parameter sets as `Invoke-SqliteQuery` (`-Path`, `-ConnectionString`, `-Connection`) and closes any connection it creates internally.
+  - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 ## Tests
 

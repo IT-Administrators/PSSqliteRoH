@@ -114,6 +114,14 @@ Invoke-SqliteQuery -Query 'SELECT id, name FROM users ORDER BY id;' -Path ./data
 Invoke-SqliteQuery -Query 'SELECT id, name FROM users;' -Path ./data/example.db -ReadOnly
 ```
 
+## Get SQLite version
+
+Use `Get-SqliteVersion` to print the SQLite engine version for the current database.
+
+```powershell
+Get-SqliteVersion -Path ./data/example.db
+```
+
 ## Documentation
 
 - Module entry: [PSSqliteRoH.psm1][pssqliteroh]

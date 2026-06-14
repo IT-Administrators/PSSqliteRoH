@@ -130,4 +130,42 @@ Describe 'PSSqliteRoH PowerShell module' {
             { Invoke-SqliteQuery -Query "INSERT INTO test_table (name) VALUES ('Charlie');" -Path $testDbPath -ReadOnly } | Should -Throw
         }
     }
+
+    Context 'Get-SqliteVersion command' {
+        It 'imports the module successfully' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            Get-Command Get-SqliteVersion | Should -Not -BeNullOrEmpty
+        }
+
+        It 'returns the sqlite engine version for a database path' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetVersion_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            New-SqliteDatabase -Path $testDbPath -Create -PassThru | Out-Null
+            $version = Get-SqliteVersion -Path $testDbPath
+
+            $version | Should -Not -BeNullOrEmpty
+            $version | Should -BeOfType 'System.String'
+        }
+
+        It 'returns the sqlite engine version for an open connection' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetVersion_Conn_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $connection = New-SqliteDatabase -Path $testDbPath -Create -PassThru
+            $version = Get-SqliteVersion -Connection $connection
+            $connection.Close()
+
+            $version | Should -Not -BeNullOrEmpty
+            $version | Should -BeOfType 'System.String'
+        }
+    }
 }

@@ -33,7 +33,7 @@ Get-ChildItem -Path $assemblyFolder -Filter '*.dll' | Sort-Object Name | ForEach
 function New-SqliteDatabase {
     <#
     .SYNOPSIS
-        Create aand open new database file
+        Create and open new database file
 
     .DESCRIPTION
         This function creates and opens a new or existing database file without writing data to it. 
@@ -108,45 +108,26 @@ function New-SqliteDatabase {
     }
 
     process {
+        $connectionParams = @{
+            Create   = $Create.IsPresent
+            ReadOnly = $ReadOnly.IsPresent
+        }
+
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
-            $resolvedPath = $null
+            $connectionParams.Path = $Path
             try {
-                $resolvedPath = Resolve-Path -LiteralPath $Path -ErrorAction Stop
-                $databasePath = $resolvedPath.ProviderPath
+                $databasePath = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).ProviderPath
             } catch {
                 $databasePath = [System.IO.Path]::GetFullPath($Path)
             }
-            # Create the database file if not exists. 
-            # The created file is an empty file which can be opened in any editor.
-            # It will be an sqlite file on first write operation.
-            if ($Create -and -not (Test-Path -Path (Split-Path -Parent $databasePath))) {
-                New-Item -ItemType Directory -Path (Split-Path -Parent $databasePath) -Force | Out-Null
-            }
-            # Catch database not exists and Create parameter not specified.
-            if (-not $Create -and -not (Test-Path -Path $databasePath)) {
-                throw "Database file '$databasePath' does not exist. Use -Create to create it." 
-            }
-
             $connectionString = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::BuildConnectionString($databasePath, $Create.IsPresent, $ReadOnly.IsPresent)
         } else {
+            $connectionParams.ConnectionString = $ConnectionString
             $connectionString = $ConnectionString
         }
 
-        # Create and open the database connection.
-        $connection = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::CreateConnection($connectionString)
-        $connection.Open()
-
-        # If read-only mode requested, enforce query-only mode at the SQLite level.
-        if ($ReadOnly.IsPresent) {
-            try {
-                $pr = $connection.CreateCommand()
-                $pr.CommandText = 'PRAGMA query_only = TRUE;'
-                $pr.ExecuteNonQuery() | Out-Null
-            } catch {
-                # If the PRAGMA is not supported, continue without failing here; reads should still work.
-                Write-Verbose "Unable to set PRAGMA query_only: $_"
-            }
-        }
+        $connectionContext = Get-SqliteConnection @connectionParams
+        $connection = $connectionContext.Connection
 
         if ($PassThru) {
             Write-Output $connection
@@ -156,6 +137,144 @@ function New-SqliteDatabase {
                 ConnectionString = $connectionString
                 Connection       = $connection
             }
+        }
+    }
+}
+
+function Get-SqliteConnection {
+    <#
+    .SYNOPSIS
+        Handles the sqlite connection
+
+    .DESCRIPTION
+        As you can specify a <Path/ConnectionString/Connection> parameter on each command, this function
+        handles the different connection types.
+
+        It is just a helper function and only exported when importing the .psm1 file instead of the .psd1 file.
+
+    .PARAMETER Path
+        Filepath of the database.
+
+    .PARAMETER ConnectionString
+        Connectionstring containing database specifications e.g. 'Data Source=./data/example.db;Mode=ReadWriteCreate'.
+
+    .PARAMETER Connection
+        Existing connection object.
+
+    .PARAMETER Create
+        Create database of not exist.
+
+    .PARAMETER ReadOnly
+        Open database in readonly mode. No changes to database possible.
+
+    .NOTES
+        Written and testet in PowerShell Core, compatible with Windows Powershell.
+
+    .LINK
+        https://github.com/IT-Administrators/PSSqliteRoH
+    #>
+    [CmdletBinding(DefaultParameterSetName = 'Path')]
+    param (
+        [Parameter(
+        Mandatory = $true,
+        Position = 0,
+        ParameterSetName = 'Path',
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = 'Filepath of the database.')]
+        [string]$Path,
+
+        [Parameter(
+        Mandatory = $true,
+        ParameterSetName = 'ConnectionString',
+        HelpMessage = 'Explicit SQLite connection string instead of a file path e.g. "Data Source=./data/example.db;Mode=ReadWriteCreate".')]
+        [string]$ConnectionString,
+
+        [Parameter(
+        Mandatory = $true,
+        ParameterSetName = 'Connection',
+        HelpMessage = 'Existing connection object.')]
+        [System.Data.Common.DbConnection]$Connection,
+
+        [Parameter(
+        HelpMessage = 'Create the database file if it does not already exist (only when using -Path).')]
+        [switch]$Create,
+
+        [Parameter(
+        HelpMessage = 'Open the database in read-only mode (only when using -Path).')]
+        [switch]$ReadOnly
+    )
+
+    begin {
+        if (-not ([Type]::GetType('PSSqliteRoH.Sqlite.SqliteDatabaseManager, PSSqliteRoH.Sqlite'))) {
+            throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
+        }
+    }
+
+    process {
+        $createdConnection = $false
+
+        if ($PSCmdlet.ParameterSetName -eq 'Path') {
+            $resolvedPath = $null
+            try {
+                $resolvedPath = Resolve-Path -LiteralPath $Path -ErrorAction Stop
+                $databasePath = $resolvedPath.ProviderPath
+            } catch {
+                $databasePath = [System.IO.Path]::GetFullPath($Path)
+            }
+
+            if ($Create -and -not (Test-Path -Path (Split-Path -Parent $databasePath))) {
+                New-Item -ItemType Directory -Path (Split-Path -Parent $databasePath) -Force | Out-Null
+            }
+
+            if (-not $Create -and -not (Test-Path -Path $databasePath)) {
+                throw "Database file '$databasePath' does not exist. Use -Create to create it."
+            }
+
+            $connectionString = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::BuildConnectionString($databasePath, $Create.IsPresent, $ReadOnly.IsPresent)
+            $connection = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::CreateConnection($connectionString)
+            $connection.Open()
+            $createdConnection = $true
+
+            if ($ReadOnly.IsPresent) {
+                try {
+                    $pr = $connection.CreateCommand()
+                    $pr.CommandText = 'PRAGMA query_only = TRUE;'
+                    $pr.ExecuteNonQuery() | Out-Null
+                } catch {
+                    Write-Verbose "Unable to set PRAGMA query_only: $_"
+                }
+            }
+        } elseif ($PSCmdlet.ParameterSetName -eq 'ConnectionString') {
+            $connection = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::CreateConnection($ConnectionString)
+            $connection.Open()
+            $createdConnection = $true
+
+            try {
+                $csb = New-Object Microsoft.Data.Sqlite.SqliteConnectionStringBuilder($ConnectionString)
+                if ($csb.Mode -eq [Microsoft.Data.Sqlite.SqliteOpenMode]::ReadOnly) {
+                    $pr = $connection.CreateCommand()
+                    $pr.CommandText = 'PRAGMA query_only = TRUE;'
+                    $pr.ExecuteNonQuery() | Out-Null
+                }
+            } catch {
+                Write-Verbose "Unable to inspect/enforce read-only for ConnectionString: $_"
+            }
+        } else {
+            if (-not $Connection) {
+                throw 'A valid connection object must be provided when using the Connection parameter set.'
+            }
+
+            $connection = $Connection
+            if ($connection.State -ne 'Open') {
+                $connection.Open()
+                $createdConnection = $true
+            }
+        }
+
+        [PSCustomObject]@{
+            Connection      = $connection
+            Created         = $createdConnection
         }
     }
 }
@@ -258,67 +377,22 @@ function Invoke-SqliteQuery {
     }
 
     process {
-        # Save connection status.
-        $createdConnection = $false
+        $connectionParams = @{
+            Create   = $Create.IsPresent
+            ReadOnly = $ReadOnly.IsPresent
+        }
 
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
-            $resolvedPath = $null
-            try {
-                $resolvedPath = Resolve-Path -LiteralPath $Path -ErrorAction Stop
-                $databasePath = $resolvedPath.ProviderPath
-            } catch {
-                $databasePath = [System.IO.Path]::GetFullPath($Path)
-            }
-
-            if ($Create -and -not (Test-Path -Path (Split-Path -Parent $databasePath))) {
-                New-Item -ItemType Directory -Path (Split-Path -Parent $databasePath) -Force | Out-Null
-            }
-
-            if (-not $Create -and -not (Test-Path -Path $databasePath)) {
-                throw "Database file '$databasePath' does not exist. Use -Create to create it."
-            }
-
-            $cs = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::BuildConnectionString($databasePath, $Create.IsPresent, $ReadOnly.IsPresent)
-            $connection = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::CreateConnection($cs)
-            $connection.Open()
-            $createdConnection = $true
-            # Check if readonly was specified.
-            if ($ReadOnly.IsPresent) {
-                try {
-                    $pr = $connection.CreateCommand()
-                    $pr.CommandText = 'PRAGMA query_only = TRUE;'
-                    $pr.ExecuteNonQuery() | Out-Null
-                } catch {
-                    Write-Verbose "Unable to set PRAGMA query_only: $_"
-                }
-            }
+            $connectionParams.Path = $Path
         } elseif ($PSCmdlet.ParameterSetName -eq 'ConnectionString') {
-            $connection = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::CreateConnection($ConnectionString)
-            $connection.Open()
-            $createdConnection = $true
-            # No explicit ReadOnly parameter for ConnectionString parameter set.
-            # If the connection string itself requests ReadOnly, attempt to enforce query-only.
-            try {
-                $csb = New-Object Microsoft.Data.Sqlite.SqliteConnectionStringBuilder($ConnectionString)
-                if ($csb.Mode -eq [Microsoft.Data.Sqlite.SqliteOpenMode]::ReadOnly) {
-                    $pr = $connection.CreateCommand()
-                    $pr.CommandText = 'PRAGMA query_only = TRUE;'
-                    $pr.ExecuteNonQuery() | Out-Null
-                }
-            } catch {
-                Write-Verbose "Unable to inspect/enforce read-only for ConnectionString: $_"
-            }
+            $connectionParams.ConnectionString = $ConnectionString
         } else {
-            # ParameterSet 'Connection' - use provided connection
-            if (-not $Connection) {
-                throw 'A valid connection object must be provided when using the Connection parameter set.'
-            }
-            $connection = $Connection
-            if ($connection.State -ne 'Open') {
-                $connection.Open()
-                $createdConnection = $true
-            }
+            $connectionParams.Connection = $Connection
         }
+
+        $connectionContext = Get-SqliteConnection @connectionParams
+        $connection = $connectionContext.Connection
+        $createdConnection = $connectionContext.Created
 
         $command = $connection.CreateCommand()
         $command.CommandText = $Query
@@ -351,5 +425,118 @@ function Invoke-SqliteQuery {
             $connection.Close()
             $connection.Dispose()
         }
+    }
+}
+
+function Get-SqliteVersion {
+    <#
+    .SYNOPSIS
+        Get sqlite version of specified database
+
+    .DESCRIPTION
+        Get the sqlite version of the specified database. This might be important as not all sqlite commands
+        are compatible with all versions. 
+
+    .PARAMETER Path
+        Filepath of the database.
+
+    .PARAMETER ConnectionString
+        Connectionstring containing database specifications e.g. 'Data Source=./data/example.db;Mode=ReadWriteCreate'.
+
+    .PARAMETER Connection
+        Existing connection object.
+
+    .PARAMETER Create
+        Create database of not exist.
+
+    .PARAMETER ReadOnly
+        Open database in readonly mode. No changes to database possible.
+
+    .EXAMPLE
+        Get the sqlite version of the specified database.
+
+        Get-SqliteVersion -Path ./data/example.db
+
+        Output:
+
+        3.40.1
+
+    .NOTES
+        Written and testet in PowerShell Core, compatible with Windows Powershell.
+
+    .LINK
+        https://github.com/IT-Administrators/PSSqliteRoH
+    #>
+    [CmdletBinding(DefaultParameterSetName = 'Path')]
+    param (
+        # File path of the database to inspect.
+        [Parameter(
+        Mandatory = $true,
+        Position = 0,
+        ParameterSetName = 'Path',
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = 'Filepath of the database.')]
+        [string]$Path,
+
+        # Explicit SQLite connection string.
+        [Parameter(
+        Mandatory = $true,
+        ParameterSetName = 'ConnectionString',
+        HelpMessage = 'Explicit SQLite connection string instead of a file path e.g. "Data Source=./data/example.db;Mode=ReadWriteCreate".')]
+        [string]$ConnectionString,
+
+        # Existing open connection object.
+        [Parameter(
+        Mandatory = $true,
+        ParameterSetName = 'Connection',
+        HelpMessage = 'Existing connection object.')]
+        [System.Data.Common.DbConnection]$Connection,
+
+        # Create the database file if it does not already exist (only when using -Path).
+        [Parameter(
+        HelpMessage = 'Create the database file if it does not already exist.')]
+        [switch]$Create,
+
+        # Open the database in read-only mode (only when using -Path).
+        [Parameter(
+        HelpMessage = 'Open the database in read-only mode. This prevents modifications when possible.')]
+        [switch]$ReadOnly
+    )
+
+    begin {
+        if (-not ([Type]::GetType('PSSqliteRoH.Sqlite.SqliteDatabaseManager, PSSqliteRoH.Sqlite'))) {
+            throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
+        }
+    }
+
+    process {
+        $connectionParams = @{
+            Create   = $Create.IsPresent
+            ReadOnly = $ReadOnly.IsPresent
+        }
+
+        if ($PSCmdlet.ParameterSetName -eq 'Path') {
+            $connectionParams.Path = $Path
+        } elseif ($PSCmdlet.ParameterSetName -eq 'ConnectionString') {
+            $connectionParams.ConnectionString = $ConnectionString
+        } else {
+            $connectionParams.Connection = $Connection
+        }
+
+        $connectionContext = Get-SqliteConnection @connectionParams
+        $connection = $connectionContext.Connection
+        $createdConnection = $connectionContext.Created
+
+        $command = $connection.CreateCommand()
+        $command.CommandText = 'SELECT sqlite_version();'
+        $version = $command.ExecuteScalar()
+
+        if ($createdConnection -and $connection) {
+            $connection.Close()
+            $connection.Dispose()
+        }
+
+        Write-Output $version
     }
 }
