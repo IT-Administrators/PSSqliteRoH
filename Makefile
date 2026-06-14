@@ -1,7 +1,6 @@
 PROJECT = src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
 CONFIGURATION = Release
 OUTPUT = lib/netstandard2.0
-ROOT_OUTPUT = lib
 DOTNET = dotnet
 NUGET_PACKAGES ?= $(HOME)/.nuget/packages
 UNAME_S := $(shell uname -s)
@@ -32,7 +31,6 @@ $(OUTPUT)/PSSqliteRoH.Sqlite.dll: $(PROJECT)
 	mkdir -p $(OUTPUT)
 	$(DOTNET) publish $(PROJECT) -c $(CONFIGURATION) -f netstandard2.0 -o $(OUTPUT)
 	@echo "Staging runtime and native files into $(OUTPUT)"
-	@cp -u "$(OUTPUT)/PSSqliteRoH.Sqlite.dll" "$(OUTPUT)/PSSqliteRoH.Sqlite.pdb" "$(OUTPUT)/PSSqliteRoH.Sqlite.deps.json" "$(ROOT_OUTPUT)" 2>/dev/null || true
 	$(MAKE) copy-native
 
 copy-native:
@@ -43,6 +41,5 @@ copy-native:
 
 clean:
 	rm -rf $(OUTPUT)
-	rm -f "$(ROOT_OUTPUT)/PSSqliteRoH.Sqlite.dll" "$(ROOT_OUTPUT)/PSSqliteRoH.Sqlite.pdb" "$(ROOT_OUTPUT)/PSSqliteRoH.Sqlite.deps.json"
 
 install: all
