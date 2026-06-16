@@ -14,9 +14,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up PowerShell
-        uses: PowerShell/PowerShell-For-GitHub-Actions@v2
-
       - name: Install dependencies
         run: |
           sudo apt-get update
