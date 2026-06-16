@@ -2,17 +2,48 @@ name: Test On Windows
 
 on:
   workflow_run:
-    # Workflow that triggers this workflow
     workflows: ["Build"]
     types:
       - completed
 
 jobs:
-  test-windows:
-    name: Windows Tests (${{ matrix.shell }})
+
+  # Run .NET tests once
+  dotnet-tests:
+    name: C# Tests
     runs-on: windows-latest
-    # Run only when triggering workflow was successfull
+
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore C# dependencies
+        run: dotnet restore ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
+
+      - name: Build C# project
+        run: dotnet build ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj --configuration Release --no-restore
+
+      - name: Run C# tests
+        run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: module
+          path: ./src/PSSqliteRoH.Sqlite/bin/Release/
+
+  # Run Pester tests twice (pwsh + powershell)
+  pester-tests:
+    name: Pester Tests (${{ matrix.shell }})
+    runs-on: windows-latest
+    needs: dotnet-tests
 
     strategy:
       matrix:
@@ -28,24 +59,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # C# Tests
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Download module artifact
+        uses: actions/download-artifact@v4
         with:
-          dotnet-version: "8.0.x"
+          name: module
+          path: ./module
 
-      - name: Restore C# dependencies
-        run: dotnet restore ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
-
-      - name: Build C# project
-        run: dotnet build ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj --configuration Release --no-restore
-
-      - name: Run C# tests
-        run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
-
-      # PESTER Tests
       - name: Install Pester
         run: Install-Module Pester -Force -Scope CurrentUser
 
       - name: Run Pester tests
-        run: Invoke-Pester -Path ./tests/ -Output Detailed -EnableExit
+        run: Invoke-Pester -Path ./tests/ -Output Detailed
