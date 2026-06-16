@@ -2,17 +2,16 @@ name: Test On Windows
 
 on:
   workflow_run:
-    # Name of the triggering workflow
-    workflows: ["build"]
+    # Workflow that triggers this workflow
+    workflows: ["Build"]
     types:
       - completed
 
 jobs:
   test-windows:
-    name: Windows Tests (pwsh + WindowsPowerShell)
+    name: Windows Tests (${{ matrix.shell }})
     runs-on: windows-latest
-
-    # Only run if the triggering workflow succeeded
+    # Run only when triggering workflow was successfull
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     strategy:
@@ -20,6 +19,10 @@ jobs:
         shell:
           - pwsh
           - powershell
+
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
 
     steps:
       - name: Checkout
@@ -33,21 +36,16 @@ jobs:
 
       - name: Restore C# dependencies
         run: dotnet restore ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
-        shell: ${{ matrix.shell }}
 
       - name: Build C# project
         run: dotnet build ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj --configuration Release --no-restore
-        shell: ${{ matrix.shell }}
 
       - name: Run C# tests
         run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
-        shell: ${{ matrix.shell }}
 
       # PESTER Tests
       - name: Install Pester
         run: Install-Module Pester -Force -Scope CurrentUser
-        shell: ${{ matrix.shell }}
 
       - name: Run Pester tests
-        run: Invoke-Pester -Path ./tests/ -Output Detailed
-        shell: ${{ matrix.shell }}
+        run: Invoke-Pester -Path ./tests/ -Output Detailed -EnableExit
