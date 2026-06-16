@@ -21,14 +21,31 @@ $assemblyFolder = $script:LibFolder
 if (-not (Test-Path -Path $assemblyFolder)) {
     throw "Unable to locate PSSqliteRoH helper assemblies. Ensure the module folder contains 'lib/netstandard2.0'."
 }
-# Import every dll in the lib folder.
-Get-ChildItem -Path $assemblyFolder -Filter '*.dll' | Sort-Object Name | ForEach-Object {
-    try {
-        [Reflection.Assembly]::LoadFrom($_.FullName) | Out-Null
-    } catch {
-        Write-Verbose "Unable to load assembly '$($_.FullName)': $_"
+
+# Import dlls based on OS.
+if ($PSVersionTable.PSEdition -eq "Desktop" -and $PSVersionTable.PSVersion.Major -eq 5) {
+    $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "win-x64"
+}
+elseif ($PSVersionTable.PSEdition -eq "Core" -and $PSVersionTable.PSVersion.Major -ge 7) {
+    if ($IsWindows) {
+        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "win-x64"
+    }
+    if ($IsLinux) {
+        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "linux-x64"
+    }
+    if ($IsLinux) {
+        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "osx-x64"
     }
 }
+
+# Import every dll in the lib folder.
+# Get-ChildItem -Path $assemblyFolder -Filter '*.dll' | Sort-Object Name | ForEach-Object {
+#     try {
+#         [Reflection.Assembly]::LoadFrom($_.FullName) | Out-Null
+#     } catch {
+#         Write-Verbose "Unable to load assembly '$($_.FullName)': $_"
+#     }
+# }
 
 function New-SqliteDatabase {
     <#
