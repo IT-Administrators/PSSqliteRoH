@@ -1,16 +1,15 @@
 {
   "runtimeTarget": {
-    "name": ".NETStandard,Version=v2.0/",
+    "name": ".NETStandard,Version=v2.0/linux-x64",
     "signature": ""
   },
   "compilationOptions": {},
   "targets": {
     ".NETStandard,Version=v2.0": {},
-    ".NETStandard,Version=v2.0/": {
+    ".NETStandard,Version=v2.0/linux-x64": {
       "PSSqliteRoH.Sqlite/1.0.0": {
         "dependencies": {
-          "Microsoft.Data.Sqlite": "7.0.13",
-          "NETStandard.Library": "2.0.3"
+          "Microsoft.Data.Sqlite": "7.0.13"
         },
         "runtime": {
           "PSSqliteRoH.Sqlite.dll": {}
@@ -31,12 +30,6 @@
             "assemblyVersion": "7.0.13.0",
             "fileVersion": "7.0.1323.51806"
           }
-        }
-      },
-      "Microsoft.NETCore.Platforms/1.1.0": {},
-      "NETStandard.Library/2.0.3": {
-        "dependencies": {
-          "Microsoft.NETCore.Platforms": "1.1.0"
         }
       },
       "SQLitePCLRaw.bundle_e_sqlite3/2.1.4": {
@@ -62,7 +55,13 @@
           }
         }
       },
-      "SQLitePCLRaw.lib.e_sqlite3/2.1.4": {},
+      "SQLitePCLRaw.lib.e_sqlite3/2.1.4": {
+        "native": {
+          "runtimes/linux-x64/native/libe_sqlite3.so": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
       "SQLitePCLRaw.provider.e_sqlite3/2.1.4": {
         "dependencies": {
           "SQLitePCLRaw.core": "2.1.4"
@@ -132,20 +131,6 @@
       "sha512": "sha512-acRUY0iRrdIrhUXxu9GnonxV9P3VIeMnpnmHoY9vE9D5CAJeThro7vr63urSD0Qmav2gS2sxNAQ/NkP09OZJBQ==",
       "path": "microsoft.data.sqlite.core/7.0.13",
       "hashPath": "microsoft.data.sqlite.core.7.0.13.nupkg.sha512"
-    },
-    "Microsoft.NETCore.Platforms/1.1.0": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-kz0PEW2lhqygehI/d6XsPCQzD7ff7gUJaVGPVETX611eadGsA3A877GdSlU0LRVMCTH/+P3o2iDTak+S08V2+A==",
-      "path": "microsoft.netcore.platforms/1.1.0",
-      "hashPath": "microsoft.netcore.platforms.1.1.0.nupkg.sha512"
-    },
-    "NETStandard.Library/2.0.3": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-st47PosZSHrjECdjeIzZQbzivYBJFv6P2nv4cj2ypdI204DO+vZ7l5raGMiX4eXMJ53RfOIg+/s4DHVZ54Nu2A==",
-      "path": "netstandard.library/2.0.3",
-      "hashPath": "netstandard.library.2.0.3.nupkg.sha512"
     },
     "SQLitePCLRaw.bundle_e_sqlite3/2.1.4": {
       "type": "package",
