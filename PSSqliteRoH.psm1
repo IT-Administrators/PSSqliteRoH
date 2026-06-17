@@ -22,30 +22,59 @@ if (-not (Test-Path -Path $assemblyFolder)) {
     throw "Unable to locate PSSqliteRoH helper assemblies. Ensure the module folder contains 'lib/netstandard2.0'."
 }
 
-# Import dlls based on OS.
-if ($PSVersionTable.PSEdition -eq "Desktop" -and $PSVersionTable.PSVersion.Major -eq 5) {
-    $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "win-x64"
+# Import native/runtime-specific assemblies for the current platform.
+if ($PSVersionTable.PSEdition -eq 'Desktop' -and $PSVersionTable.PSVersion.Major -eq 5) {
+    $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'win-x64'
 }
-elseif ($PSVersionTable.PSEdition -eq "Core" -and $PSVersionTable.PSVersion.Major -ge 7) {
+elseif ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.PSVersion.Major -ge 7) {
     if ($IsWindows) {
-        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "win-x64"
+        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'win-x64'
     }
-    if ($IsLinux) {
-        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "linux-x64"
+    elseif ($IsLinux) {
+        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'linux-x64'
     }
-    if ($IsLinux) {
-        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath "osx-x64"
+    elseif ($IsMacOS) {
+        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'osx-x64'
     }
 }
 
-# Import every dll in the lib folder.
-# Get-ChildItem -Path $assemblyFolder -Filter '*.dll' | Sort-Object Name | ForEach-Object {
-#     try {
-#         [Reflection.Assembly]::LoadFrom($_.FullName) | Out-Null
-#     } catch {
-#         Write-Verbose "Unable to load assembly '$($_.FullName)': $_"
-#     }
-# }
+# Load every DLL from the resolved runtime folder so the helper assembly can be resolved.
+if (Test-Path -Path $assemblyFolder) {
+    foreach ($dll in Get-ChildItem -Path $assemblyFolder -Filter '*.dll' | Sort-Object FullName) {
+        try {
+            $assemblyName = [System.IO.Path]::GetFileNameWithoutExtension($dll.FullName)
+            if (-not ([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq $assemblyName })) {
+                [Reflection.Assembly]::LoadFrom($dll.FullName) | Out-Null
+            }
+        } catch {
+            Write-Verbose "Unable to load assembly '$($dll.FullName)': $($_.Exception.Message)"
+        }
+    }
+}
+
+function Get-SqliteDatabaseManagerType {
+    <#
+    .SYNOPSIS
+        Internal helper used to verify that the managed SQLite runtime is loaded.
+    
+    .DESCRIPTION
+        Internal helper function that checks if the PSSqliteRoH.Sqlite assembly is loaded and returns the type of the SqliteDatabaseManager class. 
+        This is used by other functions to verify that the necessary runtime is available before attempting to use it.
+
+    .NOTES
+        Written and testet in PowerShell Core, compatible with Windows Powershell.
+
+    .LINK
+        https://github.com/IT-Administrators/PSSqliteRoH
+    #>
+    $loadedAssembly = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $_.GetName().Name -eq 'PSSqliteRoH.Sqlite' } | Select-Object -First 1
+
+    if ($loadedAssembly) {
+        return $loadedAssembly.GetType('PSSqliteRoH.Sqlite.SqliteDatabaseManager', $false, $true)
+    }
+
+    return $null
+}
 
 function New-SqliteDatabase {
     <#
@@ -119,7 +148,7 @@ function New-SqliteDatabase {
 
     begin {
         # Verify the helper assembly is loaded before using its static methods.
-        if (-not ([Type]::GetType('PSSqliteRoH.Sqlite.SqliteDatabaseManager, PSSqliteRoH.Sqlite'))) {
+        if (-not (Get-SqliteDatabaseManagerType)) {
             throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
         }
     }
@@ -252,7 +281,7 @@ function Get-SqliteConnection {
     )
 
     begin {
-        if (-not ([Type]::GetType('PSSqliteRoH.Sqlite.SqliteDatabaseManager, PSSqliteRoH.Sqlite'))) {
+        if (-not (Get-SqliteDatabaseManagerType)) {
             throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
         }
     }
@@ -370,8 +399,8 @@ function Invoke-SqliteQuery {
     )
 
     begin {
-        # Check if module is losded.
-        if (-not ([Type]::GetType('PSSqliteRoH.Sqlite.SqliteDatabaseManager, PSSqliteRoH.Sqlite'))) {
+        # Check if module is loaded.
+        if (-not (Get-SqliteDatabaseManagerType)) {
             throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
         }
     }
@@ -461,7 +490,7 @@ function Get-SqliteVersion {
     )
 
     begin {
-        if (-not ([Type]::GetType('PSSqliteRoH.Sqlite.SqliteDatabaseManager, PSSqliteRoH.Sqlite'))) {
+        if (-not (Get-SqliteDatabaseManagerType)) {
             throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
         }
     }
