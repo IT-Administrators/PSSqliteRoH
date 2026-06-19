@@ -6,18 +6,20 @@ on:
     types: [completed]
 
 jobs:
-
   dotnet-tests:
     name: C# Tests (macOS)
     runs-on: macos-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout latest commit including build artifacts
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
@@ -35,9 +37,11 @@ jobs:
         shell: pwsh
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout latest commit including build artifacts
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
 
       - run: Install-Module Pester -Force -Scope CurrentUser
       - run: Import-Module "$PWD/PSSqliteRoH.psm1" -Force
