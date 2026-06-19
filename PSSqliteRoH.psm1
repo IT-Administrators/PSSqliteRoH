@@ -520,6 +520,6 @@ function Get-SqliteVersion {
         $command.CommandText = 'SELECT sqlite_version();'
         $version = $command.ExecuteScalar()
 
-        Write-Output $version
+        return $version
     }
 }
