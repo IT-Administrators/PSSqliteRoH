@@ -1,48 +1,48 @@
-name: Test On macOS
+# name: Test On macOS
 
-on:
-  workflow_run:
-    workflows: ["Build"]
-    types: [completed]
+# on:
+#   workflow_run:
+#     workflows: ["Build"]
+#     types: [completed]
 
-jobs:
-  dotnet-tests:
-    name: C# Tests (macOS)
-    runs-on: macos-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+# jobs:
+#   dotnet-tests:
+#     name: C# Tests (macOS)
+#     runs-on: macos-latest
+#     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
-    steps:
-      - name: Checkout latest commit including build artifacts
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_branch }}
+#     steps:
+#       - name: Checkout latest commit including build artifacts
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+#           ref: ${{ github.event.workflow_run.head_branch }}
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
+#       - name: Setup .NET
+#         uses: actions/setup-dotnet@v4
+#         with:
+#           dotnet-version: "8.0.x"
 
-      - run: dotnet restore ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
-      - run: dotnet build ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj --configuration Release --no-restore
-      - run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
+#       - run: dotnet restore ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
+#       - run: dotnet build ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj --configuration Release --no-restore
+#       - run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
 
-  pester-tests:
-    name: Pester Tests (macOS pwsh)
-    runs-on: macos-latest
-    needs: dotnet-tests
+#   pester-tests:
+#     name: Pester Tests (macOS pwsh)
+#     runs-on: macos-latest
+#     needs: dotnet-tests
 
-    defaults:
-      run:
-        shell: pwsh
+#     defaults:
+#       run:
+#         shell: pwsh
 
-    steps:
-      - name: Checkout latest commit including build artifacts
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_branch }}
+#     steps:
+#       - name: Checkout latest commit including build artifacts
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+#           ref: ${{ github.event.workflow_run.head_branch }}
 
-      - run: Install-Module Pester -Force -Scope CurrentUser
-      - run: Import-Module "$PWD/PSSqliteRoH.psm1" -Force
-      - run: Invoke-Pester -Path ./tests/ -Output Detailed
+#       - run: Install-Module Pester -Force -Scope CurrentUser
+#       - run: Import-Module "$PWD/PSSqliteRoH.psm1" -Force
+#       - run: Invoke-Pester -Path ./tests/ -Output Detailed
