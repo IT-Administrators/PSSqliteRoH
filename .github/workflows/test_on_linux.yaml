@@ -1,0 +1,67 @@
+name: Test On Linux
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
+
+jobs:
+
+  # Run .NET tests once on Linux
+  dotnet-tests:
+    name: C# Tests (Linux)
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore C# dependencies
+        run: dotnet restore ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
+
+      - name: Build C# project
+        run: dotnet build ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj --configuration Release --no-restore
+
+      - name: Run C# tests
+        run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-linux
+          path: ./src/PSSqliteRoH.Sqlite/bin/Release/
+
+  # Run Pester tests on Linux
+  pester-tests:
+    name: Pester Tests (pwsh)
+    runs-on: ubuntu-latest
+    needs: dotnet-tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PowerShell
+        uses: PowerShell/PowerShell@v2
+        with:
+          version: '7.4.x'
+
+      - name: Download module artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: module-linux
+          path: ./module
+
+      - name: Install Pester
+        run: pwsh -Command "Install-Module Pester -Force -Scope CurrentUser"
+
+      - name: Run Pester tests
+        run: pwsh -Command "Invoke-Pester -Path ./tests/ -Output Detailed"
