@@ -53,7 +53,7 @@ This document summarizes the main classes, functions, and methods used by the pr
   - Behavior: Builds a connection string via `SqliteDatabaseManager.BuildConnectionString`, creates the connection via `SqliteDatabaseManager.CreateConnection`, opens the connection, optionally sets `PRAGMA query_only = TRUE` for read-only mode, and returns either the raw connection (when `-PassThru`) or a PSCustomObject with `DatabasePath`, `ConnectionString`, and `Connection`.
   - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
-- `Get-SqliteConnection` (internal helper function)
+- `Get-SqliteConnection` (function)
   - Purpose: Resolves or opens a SQLite connection from one of three input sources: a database file path, an explicit connection string, or an existing `DbConnection` object.
   - Behavior: When given `-Path`, it builds a connection string and opens a new connection; when given `-ConnectionString`, it opens a new connection directly; when given `-Connection`, it ensures the provided connection is open. Returns a PSCustomObject with `Connection` and `Created` properties.
   - Notes: This helper function is not part of the normal exported public API when importing the module via `PSSqliteRoH.psd1`; it is only available when importing the `.psm1` file directly.
@@ -68,6 +68,10 @@ This document summarizes the main classes, functions, and methods used by the pr
   - Purpose: Returns the SQLite engine version for a current database using `SELECT sqlite_version()`.
   - Behavior: Accepts a connection context object returned by `Get-SqliteConnection` and leaves the connection open.
   - File reference: [PSSqliteRoH.psm1][pssqliteroh]
+
+- `Get-SqliteDatabaseManagerType` (function helper)
+  - Purpose: Check if the dlls are correctly imported.
+  - Behavior: Checks if the dlls are correctly imported by check the name of all assemblies in the current runspace. If it contains this modules name it is correctly imported.
 
 ## Tests
 
