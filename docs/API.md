@@ -73,6 +73,10 @@ This document summarizes the main classes, functions, and methods used by the pr
   - Purpose: Check if the dlls are correctly imported.
   - Behavior: Checks if the dlls are correctly imported by check the name of all assemblies in the current runspace. If it contains this modules name it is correctly imported.
 
+- `Get-SqliteTableNames` (function)
+  - Purpose: Return all user created table names to check if a table exists.
+  - Behavior: Checks the sqlite_master table for all user created table names.
+
 ## Tests
 
 - C# unit tests (xUnit): [src/PSSqliteRoH.Sqlite.Tests/][pssqliteroh.sqlite.tests]

@@ -518,8 +518,100 @@ function Get-SqliteVersion {
 
         $command = $connection.CreateCommand()
         $command.CommandText = 'SELECT sqlite_version();'
+        # ExecuteScalar only returns the first row
         $version = $command.ExecuteScalar()
 
         return $version
+    }
+}
+
+function Get-SqliteTableNames {
+    <#
+    .SYNOPSIS
+        Get the names of all tables in the database.
+
+    .DESCRIPTION
+        Get all table names in the specified database.
+        It ony returns user created tables and no system tables.
+
+    .PARAMETER Database
+        Connection context returned by Get-SqliteConnection. This object must contain a valid Connection property.
+    
+    .EXAMPLE
+        Get all table names of user created tables in the specified database.
+
+        Get-SqliteTableNames -Database $Connection 
+
+        Output:
+
+        Printer
+        Printers
+        Processes
+
+    .NOTES
+        Written and testet in PowerShell Core, compatible with Windows Powershell.
+
+    .LINK
+        https://github.com/IT-Administrators/PSSqliteRoH
+    #>
+    [CmdletBinding()]
+    param (
+        # Connection context returned by Get-SqliteConnection.
+        [Parameter(
+        Mandatory = $true,
+        Position = 0,
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = 'Connection context returned by Get-SqliteConnection.')]
+        [object]$Database
+    )
+    
+    begin {
+        if (-not (Get-SqliteDatabaseManagerType)) {
+            throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
+        }
+    }
+    
+    process {
+        if (-not $Database) {
+            throw 'A valid database connection context must be provided via -Database.'
+        }
+
+        if ($Database -is [System.Management.Automation.PSCustomObject] -and $Database.PSObject.Properties.Name -contains 'Connection') {
+            $connection = $Database.Connection
+        } elseif ($Database -is [System.Data.Common.DbConnection]) {
+            $connection = $Database
+        } else {
+            throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
+        }
+
+        if (-not $connection) {
+            throw 'The provided -Database object does not contain a valid Connection.'
+        }
+
+        if ($connection.State -ne 'Open') {
+            $connection.Open()
+        }
+
+        $command = $connection.CreateCommand()
+        $command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+        # ExecuteReader returns all rows.
+        $reader = $command.ExecuteReader()
+        
+        $tableNames = @()
+        try {
+            # Read all rows and append to array.
+            while ($reader.Read()) {
+                $tableNames += $reader.GetValue(0)
+            }
+        } finally {
+            $reader.Close()
+        }
+        
+        return $tableNames
+    }
+    
+    end {
+        
     }
 }

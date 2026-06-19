@@ -180,4 +180,150 @@ Describe 'PSSqliteRoH PowerShell module' {
             $version | Should -BeOfType 'System.String'
         }
     }
+
+    Context 'Get-SqliteTableNames command' {
+        It 'imports the module successfully' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            Get-Command Get-SqliteTableNames | Should -Not -BeNullOrEmpty
+        }
+
+        It 'returns all table names when database contains multiple tables' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTables_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            
+            # Create multiple tables
+            Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
+            Invoke-SqliteQuery -Query 'CREATE TABLE products (id INTEGER PRIMARY KEY, title TEXT);' -Database $db | Out-Null
+            Invoke-SqliteQuery -Query 'CREATE TABLE orders (id INTEGER PRIMARY KEY, user_id INTEGER);' -Database $db | Out-Null
+
+            $tableNames = Get-SqliteTableNames -Database $db
+            $db.Connection.Close()
+
+            $tableNames | Should -HaveCount 3
+            $tableNames | Should -Contain 'users'
+            $tableNames | Should -Contain 'products'
+            $tableNames | Should -Contain 'orders'
+        }
+
+        It 'returns table names as an array when multiple tables exist' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTables_Array_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            
+            Invoke-SqliteQuery -Query 'CREATE TABLE table1 (id INTEGER PRIMARY KEY);' -Database $db | Out-Null
+            Invoke-SqliteQuery -Query 'CREATE TABLE table2 (id INTEGER PRIMARY KEY);' -Database $db | Out-Null
+
+            $tableNames = Get-SqliteTableNames -Database $db
+            $db.Connection.Close()
+
+            # When there are multiple results, PowerShell should return an array
+            @($tableNames).Count | Should -Be 2
+        }
+
+        It 'returns a single table name when only one table exists' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTables_Single_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            
+            Invoke-SqliteQuery -Query 'CREATE TABLE single_table (id INTEGER PRIMARY KEY);' -Database $db | Out-Null
+
+            $tableNames = Get-SqliteTableNames -Database $db
+            $db.Connection.Close()
+
+            $tableNames | Should -Be 'single_table'
+        }
+
+        It 'returns empty array when database contains no user tables' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTables_Empty_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            
+            $tableNames = Get-SqliteTableNames -Database $db
+            $db.Connection.Close()
+
+            $tableNames | Should -HaveCount 0
+        }
+
+        It 'excludes system tables (sqlite_*) from results' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTables_NoSys_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            
+            # Create a user table and create an index (which creates a system table)
+            Invoke-SqliteQuery -Query 'CREATE TABLE my_table (id INTEGER PRIMARY KEY, value TEXT);' -Database $db | Out-Null
+            Invoke-SqliteQuery -Query 'CREATE INDEX idx_value ON my_table(value);' -Database $db | Out-Null
+
+            $tableNames = Get-SqliteTableNames -Database $db
+            $db.Connection.Close()
+
+            # Should only return the user table, not sqlite_autoindex_* tables
+            $tableNames | Should -Contain 'my_table'
+            $tableNames | ForEach-Object { $_ | Should -Not -Match '^sqlite_' }
+        }
+
+        It 'works with a connection context object' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTables_ConnCtx_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            
+            Invoke-SqliteQuery -Query 'CREATE TABLE ctx_table (id INTEGER PRIMARY KEY);' -Database $db | Out-Null
+
+            $tableNames = Get-SqliteTableNames -Database $db
+            $db.Connection.Close()
+
+            $tableNames | Should -Contain 'ctx_table'
+        }
+
+        It 'works with a raw DbConnection object' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTables_RawConn_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            $connection = $db.Connection
+            
+            Invoke-SqliteQuery -Query 'CREATE TABLE raw_table (id INTEGER PRIMARY KEY);' -Database $db | Out-Null
+
+            $tableNames = Get-SqliteTableNames -Database $connection
+            $connection.Close()
+
+            $tableNames | Should -Contain 'raw_table'
+        }
+
+        It 'throws error when database parameter is invalid' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            { Get-SqliteTableNames -Database 'invalid' } | Should -Throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
+        }
+    }
 }
