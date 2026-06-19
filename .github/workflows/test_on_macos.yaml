@@ -1,0 +1,66 @@
+name: Test On macOS
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
+
+jobs:
+
+  # Run .NET tests once on macOS
+  dotnet-tests:
+    name: C# Tests (macOS)
+    runs-on: macos-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore C# dependencies
+        run: dotnet restore ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj
+
+      - name: Build C# project
+        run: dotnet build ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj --configuration Release --no-restore
+
+      - name: Run C# tests
+        run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-macos
+          path: ./src/PSSqliteRoH.Sqlite/bin/Release/
+
+  # Run Pester tests on macOS
+  pester-tests:
+    name: Pester Tests (pwsh)
+    runs-on: macos-latest
+    needs: dotnet-tests
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download module artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: module-macos
+          path: ./module
+
+      - name: Install Pester
+        run: Install-Module Pester -Force -Scope CurrentUser
+
+      - name: Run Pester tests
+        run: Invoke-Pester -Path ./tests/ -Output Detailed
