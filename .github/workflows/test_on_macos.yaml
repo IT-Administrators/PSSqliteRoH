@@ -8,11 +8,9 @@ on:
 
 jobs:
 
-  # Run .NET tests once on macOS
   dotnet-tests:
     name: C# Tests (macOS)
     runs-on: macos-latest
-
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
@@ -33,15 +31,8 @@ jobs:
       - name: Run C# tests
         run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --no-build --verbosity normal
 
-      - name: Upload build output
-        uses: actions/upload-artifact@v4
-        with:
-          name: module-macos
-          path: ./src/PSSqliteRoH.Sqlite/bin/Release/
-
-  # Run Pester tests on macOS
   pester-tests:
-    name: Pester Tests (pwsh)
+    name: Pester Tests (macOS pwsh)
     runs-on: macos-latest
     needs: dotnet-tests
 
@@ -53,14 +44,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download module artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: module-macos
-          path: ./module
-
+      # IMPORTANT: Build workflow has already committed lib/ into the repo.
+      # So here we just import the module from the repo root.
       - name: Install Pester
         run: Install-Module Pester -Force -Scope CurrentUser
+
+      - name: Import module
+        run: Import-Module "$PWD/PSSqliteRoH.psm1" -Force
 
       - name: Run Pester tests
         run: Invoke-Pester -Path ./tests/ -Output Detailed
