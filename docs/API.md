@@ -18,7 +18,7 @@ This document summarizes the main classes, functions, and methods used by the pr
 
 - C# classes: 2 (public or internal helper classes)
 - C# methods (public/overrides/static): 4
-- PowerShell functions: 4 (3 exported public functions + 1 internal helper)
+- PowerShell functions: 8 (7 exported public functions + 1 internal helper)
 
 
 ## C# — src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
