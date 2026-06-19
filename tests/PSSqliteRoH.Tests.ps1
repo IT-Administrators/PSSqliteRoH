@@ -326,4 +326,106 @@ Describe 'PSSqliteRoH PowerShell module' {
             { Get-SqliteTableNames -Database 'invalid' } | Should -Throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
         }
     }
+
+    Context 'Get-SqliteTableColumnNames command' {
+        It 'imports the module successfully' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            Get-Command Get-SqliteTableColumnNames | Should -Not -BeNullOrEmpty
+        }
+
+        It 'returns column names for the specified table' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTableColumns_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT);' -Database $db | Out-Null
+
+            $columns = Get-SqliteTableColumnNames -Database $db -TableName 'users'
+            $db.Connection.Close()
+
+            $columns | Should -HaveCount 3
+            $columns | Should -Contain 'id'
+            $columns | Should -Contain 'name'
+            $columns | Should -Contain 'email'
+        }
+
+        It 'returns empty array for a table with no columns' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTableColumns_Empty_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            Invoke-SqliteQuery -Query 'CREATE TABLE empty_columns (id INTEGER PRIMARY KEY);' -Database $db | Out-Null
+
+            $columns = Get-SqliteTableColumnNames -Database $db -TableName 'empty_columns'
+            $db.Connection.Close()
+
+            $columns | Should -HaveCount 1
+            $columns | Should -Contain 'id'
+        }
+
+        It 'throws error when table does not exist' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTableColumns_Invalid_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            
+            { Get-SqliteTableColumnNames -Database $db -TableName 'missing' } | Should -Throw
+            $db.Connection.Close()
+        }
+    }
+
+    Context 'Get-SqliteColumnsNamesAll command' {
+        It 'imports the module successfully' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            Get-Command Get-SqliteColumnsNamesAll | Should -Not -BeNullOrEmpty
+        }
+
+        It 'returns all column names for all tables in the database' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetAllColumns_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
+            Invoke-SqliteQuery -Query 'CREATE TABLE products (id INTEGER PRIMARY KEY, price REAL);' -Database $db | Out-Null
+
+            $columns = Get-SqliteColumnsNamesAll -Database $db
+            $db.Connection.Close()
+
+            $columns | Should -HaveCount 4
+            $columns | Where-Object TableName -Eq 'users' | Should -HaveCount 2
+            $columns | Where-Object TableName -Eq 'products' | Should -HaveCount 2
+            $columns | Where-Object ColumnName -Eq 'name' | Should -HaveCount 1
+            $columns | Where-Object ColumnName -Eq 'price' | Should -HaveCount 1
+        }
+
+        It 'returns no rows when database contains no tables' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetAllColumns_Empty_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            $columns = Get-SqliteColumnsNamesAll -Database $db
+            $db.Connection.Close()
+
+            $columns | Should -HaveCount 0
+        }
+    }
 }

@@ -615,3 +615,215 @@ function Get-SqliteTableNames {
         
     }
 }
+
+function Get-SqliteTableColumnNames {
+    <#
+    .SYNOPSIS
+        Get the column names for a specified table.
+
+    .DESCRIPTION
+        Returns the names of all columns defined in the specified table.
+
+    .PARAMETER Database
+        Connection context returned by Get-SqliteConnection or a raw DbConnection.
+
+    .PARAMETER TableName
+        Name of the table whose columns should be returned.
+
+    .EXAMPLE
+        Get all column names of the specified table.
+
+        Get-SqliteTableColumnNames -Database $Connection -TableName Printers
+
+        Output:
+
+        name
+        Type
+        drivername
+        portname
+        shared
+        published
+
+    .NOTES
+        Written and tested in PowerShell Core, compatible with Windows PowerShell.
+
+    .LINK
+        https://github.com/IT-Administrators/PSSqliteRoH
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(
+        Mandatory = $true,
+        Position = 0,
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = 'Connection context returned by Get-SqliteConnection.')]
+        [object]$Database,
+
+        [Parameter(
+        Mandatory = $true,
+        Position = 1,
+        HelpMessage = 'Name of the table whose column names should be returned.')]
+        [string]$TableName
+    )
+
+    begin {
+        if (-not (Get-SqliteDatabaseManagerType)) {
+            throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
+        }
+    }
+
+    process {
+        if (-not $Database) {
+            throw 'A valid database connection context must be provided via -Database.'
+        }
+
+        if ($Database -is [System.Management.Automation.PSCustomObject] -and $Database.PSObject.Properties.Name -contains 'Connection') {
+            $connection = $Database.Connection
+        } elseif ($Database -is [System.Data.Common.DbConnection]) {
+            $connection = $Database
+        } else {
+            throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
+        }
+
+        if (-not $connection) {
+            throw 'The provided -Database object does not contain a valid Connection.'
+        }
+
+        if ($connection.State -ne 'Open') {
+            $connection.Open()
+        }
+
+        $safeTableName = $TableName -replace "'", "''"
+
+        $existsCommand = $connection.CreateCommand()
+        $existsCommand.CommandText = "SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name = '$safeTableName';"
+        $tableExists = [int]$existsCommand.ExecuteScalar()
+
+        if ($tableExists -eq 0) {
+            throw "Table '$TableName' does not exist in the database."
+        }
+
+        $command = $connection.CreateCommand()
+        $command.CommandText = "SELECT name FROM pragma_table_info('$safeTableName') ORDER BY cid;"
+
+        $reader = $command.ExecuteReader()
+        $columnNames = @()
+        try {
+            while ($reader.Read()) {
+                $columnNames += $reader.GetValue(0)
+            }
+        } finally {
+            $reader.Close()
+        }
+
+        return $columnNames
+    }
+}
+
+function Get-SqliteColumnsNamesAll {
+    <#
+    .SYNOPSIS
+        Get all column names for all tables in the database.
+
+    .DESCRIPTION
+        Returns the table and column names for every user-defined table in the database.
+
+    .PARAMETER Database
+        Connection context returned by Get-SqliteConnection or a raw DbConnection.
+
+    .EXAMPLE
+        Get all column names of all tables in the specified database.
+
+        Get-SqliteColumnsNamesAll -Database $Connection
+
+        Output:
+
+        TableName  ColumnName
+        ---------  ----------
+        Printer    name
+        ...
+        Printers   name
+        ...
+        Processes  name
+        ...
+
+    .NOTES
+        Written and tested in PowerShell Core, compatible with Windows PowerShell.
+
+    .LINK
+        https://github.com/IT-Administrators/PSSqliteRoH
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(
+        Mandatory = $true,
+        Position = 0,
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = 'Connection context returned by Get-SqliteConnection.')]
+        [object]$Database
+    )
+
+    begin {
+        if (-not (Get-SqliteDatabaseManagerType)) {
+            throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
+        }
+    }
+
+    process {
+        if (-not $Database) {
+            throw 'A valid database connection context must be provided via -Database.'
+        }
+
+        if ($Database -is [System.Management.Automation.PSCustomObject] -and $Database.PSObject.Properties.Name -contains 'Connection') {
+            $connection = $Database.Connection
+        } elseif ($Database -is [System.Data.Common.DbConnection]) {
+            $connection = $Database
+        } else {
+            throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
+        }
+
+        if (-not $connection) {
+            throw 'The provided -Database object does not contain a valid Connection.'
+        }
+
+        if ($connection.State -ne 'Open') {
+            $connection.Open()
+        }
+
+        $command = $connection.CreateCommand()
+        $command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+        $reader = $command.ExecuteReader()
+
+        $tableNames = @()
+        try {
+            while ($reader.Read()) {
+                $tableNames += $reader.GetValue(0)
+            }
+        } finally {
+            $reader.Close()
+        }
+
+        $columns = @()
+        foreach ($tableName in $tableNames) {
+            $safeTableName = $tableName -replace "'", "''"
+            $columnCommand = $connection.CreateCommand()
+            $columnCommand.CommandText = "SELECT name FROM pragma_table_info('$safeTableName') ORDER BY cid;"
+
+            $columnReader = $columnCommand.ExecuteReader()
+            try {
+                while ($columnReader.Read()) {
+                    $columns += [PSCustomObject]@{
+                        TableName  = $tableName
+                        ColumnName = $columnReader.GetValue(0)
+                    }
+                }
+            } finally {
+                $columnReader.Close()
+            }
+        }
+
+        return $columns
+    }
+}
