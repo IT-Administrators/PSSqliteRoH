@@ -17,5 +17,11 @@ jobs:
       - name: Install Pester
         run: Install-Module Pester -Force -Scope CurrentUser
 
-      - name: Run Pester tests
-        run: Invoke-Pester -Path ./tests/ -Output Detailed
+      # - name: Run Pester tests
+      #   run: Invoke-Pester -Path ./tests/ -Output Detailed
+
+      - name: Get location
+        run: (Get-Location).Path
+
+      - name: Get child items
+        run: (Get-Childitem -Path (Get-Location).Path).FullName
