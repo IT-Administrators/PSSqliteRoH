@@ -1,0 +1,23 @@
+name: Test On macOS pwsh
+
+on:
+  workflow_dispatch:
+
+jobs:
+ 
+  pester-tests:
+    name: Pester Tests (macOS pwsh)
+    runs-on: macos-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Install Pester
+        run: Install-Module Pester -Force -Scope CurrentUser
+
+      - name: Run Pester tests
+        run: Invoke-Pester -Path ./tests/ -Output Detailed
