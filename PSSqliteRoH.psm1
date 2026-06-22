@@ -13,11 +13,12 @@
     https://github.com/IT-Administrators/PSSqliteRoH
 #>
 
+# Create module and dll directories.
 $script:ModuleRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $script:LibFolder = Join-Path $script:ModuleRoot 'lib/netstandard2.0'
 
 $assemblyFolder = $script:LibFolder
-
+# Test if dlls exist.
 if (-not (Test-Path -Path $assemblyFolder)) {
     throw "Unable to locate PSSqliteRoH helper assemblies. Ensure the module folder contains 'lib/netstandard2.0'."
 }
@@ -154,30 +155,38 @@ function New-SqliteDatabase {
     }
 
     process {
+        # Create connection parameters.
         $connectionParams = @{
             Create   = $Create.IsPresent
             ReadOnly = $ReadOnly.IsPresent
         }
 
+        # Catch parameter and add it to connection specification.
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
             $connectionParams.Path = $Path
             try {
+                # Resolve path to prevent shortcuts like (~,.\). Only use full qualified path.
                 $databasePath = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).ProviderPath
             } catch {
                 $databasePath = [System.IO.Path]::GetFullPath($Path)
             }
+            # Build the connection string which represents database connection specifications.
             $connectionString = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::BuildConnectionString($databasePath, $Create.IsPresent, $ReadOnly.IsPresent)
         } else {
+            # Add connection string to connection specifications.
             $connectionParams.ConnectionString = $ConnectionString
             $connectionString = $ConnectionString
         }
 
+        # Open or create database using connection specifications.
         $connectionContext = Get-SqliteConnection @connectionParams
         $connection = $connectionContext.Connection
 
+        # Write raw connection information.
         if ($PassThru) {
             Write-Output $connection
         } else {
+            # Return custom connection specification object.
             [PSCustomObject]@{
                 DatabasePath     = if ($PSCmdlet.ParameterSetName -eq 'Path') { $databasePath } else { $null }
                 ConnectionString = $connectionString
@@ -287,6 +296,7 @@ function Get-SqliteConnection {
     }
 
     process {
+        # Save connection status.
         $createdConnection = $false
 
         if ($PSCmdlet.ParameterSetName -eq 'Path') {
@@ -306,13 +316,18 @@ function Get-SqliteConnection {
                 throw "Database file '$databasePath' does not exist. Use -Create to create it."
             }
 
+            # Build the connection string which represents database connection specifications.
             $connectionString = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::BuildConnectionString($databasePath, $Create.IsPresent, $ReadOnly.IsPresent)
+            # Create database connection using the connection string.
             $connection = [PSSqliteRoH.Sqlite.SqliteDatabaseManager]::CreateConnection($connectionString)
+            # Open connection.
             $connection.Open()
+            # Change connection status.
             $createdConnection = $true
-
+            # Check if readonly was specified.
             if ($ReadOnly.IsPresent) {
                 try {
+                    # Create command and set readonly via pragma.
                     $pr = $connection.CreateCommand()
                     $pr.CommandText = 'PRAGMA query_only = TRUE;'
                     $pr.ExecuteNonQuery() | Out-Null
@@ -341,12 +356,13 @@ function Get-SqliteConnection {
             }
 
             $connection = $Connection
+            # Check connection state not open and open if so.
             if ($connection.State -ne 'Open') {
                 $connection.Open()
                 $createdConnection = $true
             }
         }
-
+        # Return connection object.
         [PSCustomObject]@{
             Connection      = $connection
             Created         = $createdConnection
@@ -427,12 +443,14 @@ function Invoke-SqliteQuery {
         }
 
         $command = $connection.CreateCommand()
+        # Set query.
         $command.CommandText = $Query
 
         # If the query looks like a SELECT, return rows. Otherwise execute non-query.
         if ($Query -match '^[\s\(]*SELECT\b') {
             $reader = $command.ExecuteReader()
             try {
+                # Iterate over reader object.
                 while ($reader.Read()) {
                     $row = @{}
                     for ($i = 0; $i -lt $reader.FieldCount; $i++) {
@@ -440,12 +458,14 @@ function Invoke-SqliteQuery {
                         $value = $reader.GetValue($i)
                         $row[$name] = $value
                     }
+                    # Return array of all rows.
                     [PSCustomObject]$row
                 }
             } finally {
                 $reader.Close()
             }
         } else {
+            # Execute non query only if not a SELECT statement.
             $affected = $command.ExecuteNonQuery()
             [PSCustomObject]@{
                 Query         = $Query
@@ -594,6 +614,7 @@ function Get-SqliteTableNames {
         }
 
         $command = $connection.CreateCommand()
+        # Create command to query all tables in database.
         $command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
         # ExecuteReader returns all rows.
         $reader = $command.ExecuteReader()
@@ -697,6 +718,7 @@ function Get-SqliteTableColumnNames {
         $safeTableName = $TableName -replace "'", "''"
 
         $existsCommand = $connection.CreateCommand()
+        # Query infos from sqlite_master for specified table.
         $existsCommand.CommandText = "SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name = '$safeTableName';"
         $tableExists = [int]$existsCommand.ExecuteScalar()
 
@@ -705,6 +727,7 @@ function Get-SqliteTableColumnNames {
         }
 
         $command = $connection.CreateCommand()
+        # Get metadata information of table.
         $command.CommandText = "SELECT name FROM pragma_table_info('$safeTableName') ORDER BY cid;"
 
         $reader = $command.ExecuteReader()
@@ -793,6 +816,7 @@ function Get-SqliteColumnNamesAll {
         }
 
         $command = $connection.CreateCommand()
+        # Get all tables from sqlite_master which are not sqite system tables.
         $command.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
         $reader = $command.ExecuteReader()
 
@@ -809,6 +833,7 @@ function Get-SqliteColumnNamesAll {
         foreach ($tableName in $tableNames) {
             $safeTableName = $tableName -replace "'", "''"
             $columnCommand = $connection.CreateCommand()
+            # Get table names and sort by cid.
             $columnCommand.CommandText = "SELECT name FROM pragma_table_info('$safeTableName') ORDER BY cid;"
 
             $columnReader = $columnCommand.ExecuteReader()
