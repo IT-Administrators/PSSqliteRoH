@@ -16,18 +16,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
       - name: Install Pester
         run: Install-Module Pester -Force -Scope CurrentUser
 
-      # - name: Run Pester tests
-      #   run: Invoke-Pester -Path ./tests/ -Output Detailed
+      # - name: Get location
+      #   run: (Get-Location).Path
 
-      - name: Get location
-        run: (Get-Location).Path
+      # - name: Get child items
+      #   run: (Get-ChildItem -Path (Get-Location).Path -Recurse).FullName
 
-      - name: Get child items
-        run: (Get-ChildItem -Path (Get-Location).Path -Recurse).FullName
+      # - name: Find PS Module
+      #   run: (Get-ChildItem -Path (Get-Location).Path -Recurse | Where-Object {$_.Name -like "*PSSqliteRoH.Tests.ps1*"}).FullName
 
-      - name: Find PS Module
-        run: (Get-ChildItem -Path (Get-Location).Path -Recurse | Where-Object {$_.Name -like "*PSModule*"}).FullName
+      - name: Run Pester tests
+        run: Invoke-Pester -Path ./tests/ -Output Detailed
