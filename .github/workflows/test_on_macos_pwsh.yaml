@@ -24,4 +24,9 @@ jobs:
         run: (Get-Location).Path
 
       - name: Get child items
-        run: (Get-Childitem -Path (Get-Location).Path).FullName
+        run: |
+          $items = (Get-ChildItem -Path (Get-Location).Path).FullName
+          Write-Output $items
+
+      - name: Find PS Module
+        run: (Get-ChildItem -Path (Get-Location).Path | Where-Object {$_.Name -like "*PSModule*"}).FullName
