@@ -721,7 +721,7 @@ function Get-SqliteTableColumnNames {
     }
 }
 
-function Get-SqliteColumnsNamesAll {
+function Get-SqliteColumnNamesAll {
     <#
     .SYNOPSIS
         Get all column names for all tables in the database.
@@ -735,7 +735,7 @@ function Get-SqliteColumnsNamesAll {
     .EXAMPLE
         Get all column names of all tables in the specified database.
 
-        Get-SqliteColumnsNamesAll -Database $Connection
+        Get-SqliteColumnNamesAll -Database $Connection
 
         Output:
 

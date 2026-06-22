@@ -385,12 +385,12 @@ Describe 'PSSqliteRoH PowerShell module' {
         }
     }
 
-    Context 'Get-SqliteColumnsNamesAll command' {
+    Context 'Get-SqliteColumnNamesAll command' {
         It 'imports the module successfully' {
             $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
             Import-Module $modulePath -Force
 
-            Get-Command Get-SqliteColumnsNamesAll | Should -Not -BeNullOrEmpty
+            Get-Command Get-SqliteColumnNamesAll | Should -Not -BeNullOrEmpty
         }
 
         It 'returns all column names for all tables in the database' {
@@ -404,7 +404,7 @@ Describe 'PSSqliteRoH PowerShell module' {
             Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
             Invoke-SqliteQuery -Query 'CREATE TABLE products (id INTEGER PRIMARY KEY, price REAL);' -Database $db | Out-Null
 
-            $columns = Get-SqliteColumnsNamesAll -Database $db
+            $columns = Get-SqliteColumnNamesAll -Database $db
             $db.Connection.Close()
 
             $columns | Should -HaveCount 4
@@ -422,7 +422,7 @@ Describe 'PSSqliteRoH PowerShell module' {
             Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
 
             $db = Get-SqliteConnection -Path $testDbPath -Create
-            $columns = Get-SqliteColumnsNamesAll -Database $db
+            $columns = Get-SqliteColumnNamesAll -Database $db
             $db.Connection.Close()
 
             $columns | Should -HaveCount 0

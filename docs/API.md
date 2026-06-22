@@ -81,7 +81,7 @@ This document summarizes the main classes, functions, and methods used by the pr
   - Purpose: Returns a list of column names in a specific table, in the order they're defined (by column ID).
   - Behavior: Uses SQLite's pragma_table_info() function to get column metadata. Orders columns by cid (column ID) to maintain definition order. Than iterates through results to create resulting array.
 
-- `Get-SqliteColumnsNamesAll` (function)
+- `Get-SqliteColumnNamesAll` (function)
   - Purpose: Returns a collection of objects containing table names paired with their respective column names for all tables in the database.
   - Behavior: Gets all user-defined table names (excludes system tables). Stores results in a $tableNames array and iterate through each table to create a PSCustomObject for each column with two properties (TableName, ColumnName).
 
