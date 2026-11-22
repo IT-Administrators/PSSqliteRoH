@@ -428,4 +428,49 @@ Describe 'PSSqliteRoH PowerShell module' {
             $columns | Should -HaveCount 0
         }
     }
+
+        Context 'Get-SqliteTable command' {
+        It 'imports the module successfully' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            Get-Command Get-SqliteColumnNamesAll | Should -Not -BeNullOrEmpty
+        }
+
+        It 'returns all values for the specified table in the database' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTable_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
+            Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Alice');" -Database $db | Out-Null
+            Invoke-SqliteQuery -Query "INSERT INTO users (name) VALUES ('Bob');" -Database $db | Out-Null
+
+            $table = Get-SqliteTable -Database $db -TableName "users"
+            $db.Connection.Close()
+            # Check if table contains two values.
+            $table | Should -HaveCount 2
+            $table.name | Should -HaveCount 2
+            $table[0].name | Should -Be "Alice"
+            $table[1].name | Should -Be "Bob"
+        }
+
+            It 'returns no rows when table contains no rows' {
+            $modulePath = Join-Path (Get-Location) 'PSSqliteRoH.psd1'
+            Import-Module $modulePath -Force
+
+            $testDbPath = Join-Path ([System.IO.Path]::GetTempPath()) "PSSqliteRoH_GetTable_Empty_Test_$(New-Guid).db"
+            Remove-Item -Path $testDbPath -ErrorAction SilentlyContinue
+
+            $db = Get-SqliteConnection -Path $testDbPath -Create
+            Invoke-SqliteQuery -Query 'CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);' -Database $db | Out-Null
+            $table = Get-SqliteTable -Database $db -TableName "users"
+            $db.Connection.Close()
+
+            $table | Should -HaveCount 0
+        }
+    }
 }

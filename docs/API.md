@@ -8,8 +8,8 @@ This document summarizes the main classes, functions, and methods used by the pr
 ## Table of Contents
 
 1. [High-level counts](#high-level-counts)
-1. [C# — src/PSSqliteRoH.Sqlite/SqliteDatabase.cs](#c-srcpssqliterohsqlitesqlitedatabasecs)
-1. [PowerShell — PSSqliteRoH.psm1](#powershell-pssqliterohpsm1)
+1. [C#: src/PSSqliteRoH.Sqlite/SqliteDatabase.cs](#c-srcpssqliterohsqlitesqlitedatabasecs)
+1. [PowerShell: PSSqliteRoH.psm1](#powershell-pssqliterohpsm1)
 1. [Tests](#tests)
 1. [Notes and recommendations](#notes-and-recommendations)
 1. [File references](#file-references)
@@ -21,7 +21,7 @@ This document summarizes the main classes, functions, and methods used by the pr
 - PowerShell functions: 8 (7 exported public functions + 1 internal helper)
 
 
-## C# — src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
+## C#: src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
 
 - `SqliteDatabaseManager` (public static class)
   - Purpose: Central helper for building connection strings and creating SQLite connections from those strings. Used by PowerShell cmdlets to open or create databases in a cross-platform way.
@@ -46,7 +46,7 @@ This document summarizes the main classes, functions, and methods used by the pr
   - File reference: [src/PSSqliteRoH.Sqlite/SqliteDatabase.cs][sqlitedatabase]
 
 
-## PowerShell — PSSqliteRoH.psm1
+## PowerShell: PSSqliteRoH.psm1
 
 - `New-SqliteDatabase` (function)
   - Purpose: PowerShell cmdlet that opens or creates a SQLite database. Accepts either a file `-Path` or an explicit `-ConnectionString`. Parameters: `-Create`, `-ReadOnly`, `-PassThru`.
@@ -72,19 +72,28 @@ This document summarizes the main classes, functions, and methods used by the pr
 - `Get-SqliteDatabaseManagerType` (function helper)
   - Purpose: Check if the dlls are correctly imported.
   - Behavior: Checks if the dlls are correctly imported by check the name of all assemblies in the current runspace. If it contains this modules name it is correctly imported.
+- File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 - `Get-SqliteTableNames` (function)
   - Purpose: Return all user created table names to check if a table exists.
   - Behavior: Checks the sqlite_master table for all user created table names.
+  - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 - `Get-SqliteTableColumnNames` (function)
   - Purpose: Returns a list of column names in a specific table, in the order they're defined (by column ID).
   - Behavior: Uses SQLite's pragma_table_info() function to get column metadata. Orders columns by cid (column ID) to maintain definition order. Than iterates through results to create resulting array.
+  - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 - `Get-SqliteColumnNamesAll` (function)
   - Purpose: Returns a collection of objects containing table names paired with their respective column names for all tables in the database.
   - Behavior: Gets all user-defined table names (excludes system tables). Stores results in a $tableNames array and iterate through each table to create a PSCustomObject for each column with two properties (TableName, ColumnName).
+  - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
+- `Get-SqliteTable` (function)
+  - Purpose: Returns an array of values of the specified table.
+  - Behavior: Each array value is an object containing the table headers and the corresponding values.
+  This array can be further processed using standard powershell cmdlets like `Where-Object` and `Select-Object`.
+  - File reference: [PSSqliteRoH.psm1][pssqliteroh]
 
 ## Tests
 
@@ -111,9 +120,9 @@ This document summarizes the main classes, functions, and methods used by the pr
 - [tests/PSSqliteRoH.Tests.ps1][pssqliteroh.tests.ps1]
 
 
-[sqlitedatabase]: src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
-[pssqliteroh]: PSSqliteRoH.psm1
-[pssqliteroh.sqlite.tests]: src/PSSqliteRoH.Sqlite.Tests/
-[pssqliteroh.tests.ps1]: tests/PSSqliteRoH.Tests.ps1
-[sqlitecrudtests]: src/PSSqliteRoH.Sqlite.Tests/SqliteCrudTests.cs
-[sqlitedatabasemanagertests]: src/PSSqliteRoH.Sqlite.Tests/SqliteDatabaseManagerTests.cs
+[sqlitedatabase]: ../src/PSSqliteRoH.Sqlite/SqliteDatabase.cs
+[pssqliteroh]: ../PSSqliteRoH.psm1
+[pssqliteroh.sqlite.tests]: ../src/PSSqliteRoH.Sqlite.Tests/
+[pssqliteroh.tests.ps1]: ../tests/PSSqliteRoH.Tests.ps1
+[sqlitecrudtests]: ../src/PSSqliteRoH.Sqlite.Tests/SqliteCrudTests.cs
+[sqlitedatabasemanagertests]: ../src/PSSqliteRoH.Sqlite.Tests/SqliteDatabaseManagerTests.cs

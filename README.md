@@ -3,7 +3,7 @@
 
 # PSSqliteRoH
 
-A powershell cross platform module to manage sqlite databases.
+*A powershell cross platform module to manage sqlite databases.*
 
 ## Table of Contents
 

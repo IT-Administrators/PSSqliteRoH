@@ -852,3 +852,82 @@ function Get-SqliteColumnNamesAll {
         return $columns
     }
 }
+
+function Get-SqliteTable {
+        <#
+    .SYNOPSIS
+        Get all values from specified table
+
+    .DESCRIPTION
+        Returns all values in the specified table.
+
+    .PARAMETER Database
+        Connection context returned by Get-SqliteConnection or a raw DbConnection.
+
+    .PARAMETER TableName
+        Name of the all values should be returned for.
+
+    .EXAMPLE
+
+
+    .NOTES
+        Written and tested in PowerShell Core, compatible with Windows PowerShell.
+
+    .LINK
+        https://github.com/IT-Administrators/PSSqliteRoH
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(
+        Mandatory = $true,
+        Position = 0,
+        ValueFromPipeline = $true,
+        ValueFromPipelineByPropertyName = $true,
+        HelpMessage = 'Connection context returned by Get-SqliteConnection.')]
+        [object]$Database,
+
+        [Parameter(
+        Mandatory = $true,
+        Position = 1,
+        HelpMessage = 'Name of the table whose values should be returned.')]
+        [string]$TableName
+    )
+    
+    begin {
+        if (-not (Get-SqliteDatabaseManagerType)) {
+            throw 'The PSSqliteRoH.Sqlite helper assembly is not loaded. Ensure the module was imported from a folder that contains lib/netstandard2.0/PSSqliteRoH.Sqlite.dll.'
+        }
+    }
+    
+    process {
+        if (-not $Database) {
+            throw 'A valid database connection context must be provided via -Database.'
+        }
+
+        if ($Database -is [System.Management.Automation.PSCustomObject] -and $Database.PSObject.Properties.Name -contains 'Connection') {
+            $connection = $Database.Connection
+        } elseif ($Database -is [System.Data.Common.DbConnection]) {
+            $connection = $Database
+        } else {
+            throw 'The -Database parameter must be a connection context returned by Get-SqliteConnection or a DbConnection object.'
+        }
+
+        if (-not $connection) {
+            throw 'The provided -Database object does not contain a valid Connection.'
+        }
+
+        if ($connection.State -ne 'Open') {
+            $connection.Open()
+        }
+
+        $safeTableName = $TableName -replace "'", "''"
+
+        $result = Invoke-SqliteQuery -Database $Database -Query "SELECT * FROM '$safeTableName';"
+
+        return $result
+    }
+    
+    end {
+        
+    }
+}
