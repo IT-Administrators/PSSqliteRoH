@@ -39,6 +39,18 @@ elseif ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.PSVersion.Majo
     }
 }
 
+$helperDll = Join-Path $assemblyFolder 'PSSqliteRoH.Sqlite.dll'
+
+if (-not (Test-Path $helperDll)) {
+    throw "Unable to locate $helperDll."
+}
+
+try {
+    [Reflection.Assembly]::LoadFrom($helperDll) | Out-Null
+} catch {
+    throw "Unable to load PSSqliteRoH.Sqlite.dll: $($_.Exception.Message)"
+}
+
 # Load every DLL from the resolved runtime folder so the helper assembly can be resolved.
 if (Test-Path -Path $assemblyFolder) {
     foreach ($dll in Get-ChildItem -Path $assemblyFolder -Filter '*.dll' | Sort-Object FullName) {
