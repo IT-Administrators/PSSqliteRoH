@@ -24,19 +24,29 @@ if (-not (Test-Path -Path $assemblyFolder)) {
 }
 
 # Import native/runtime-specific assemblies for the current platform.
+$architecture = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+
 if ($PSVersionTable.PSEdition -eq 'Desktop' -and $PSVersionTable.PSVersion.Major -eq 5) {
-    $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'win-x64'
+    $runtimeFolder = 'win-x64'
 }
 elseif ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.PSVersion.Major -ge 7) {
     if ($IsWindows) {
-        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'win-x64'
+        $runtimeFolder = 'win-x64'
     }
     elseif ($IsLinux) {
-        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'linux-x64'
+        $runtimeFolder = 'linux-x64'
     }
     elseif ($IsMacOS) {
-        $assemblyFolder = Join-Path -Path $assemblyFolder -ChildPath 'osx-x64'
+        $runtimeFolder = switch ($architecture) {
+            ([System.Runtime.InteropServices.Architecture]::Arm64) { 'osx-arm64'; break }
+            ([System.Runtime.InteropServices.Architecture]::X64)   { 'osx-x64'; break }
+            default { throw "Unsupported macOS architecture: $architecture" }
+        }
     }
+}
+
+if ($runtimeFolder) {
+    $assemblyFolder = Join-Path $script:LibFolder $runtimeFolder
 }
 
 $helperDll = Join-Path $assemblyFolder 'PSSqliteRoH.Sqlite.dll'

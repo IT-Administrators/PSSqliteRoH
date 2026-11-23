@@ -71,19 +71,38 @@ jobs:
         shell: pwsh
         run: |
           $rid = if ($IsWindows) {
-            'win-x64'
+              'win-x64'
           } elseif ($IsLinux) {
-            'linux-x64'
+              'linux-x64'
           } elseif ($IsMacOS) {
-            'osx-x64'
+              $architecture = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture
+
+              switch ($architecture) {
+                  ([System.Runtime.InteropServices.Architecture]::Arm64) { 'osx-arm64'; break }
+                  ([System.Runtime.InteropServices.Architecture]::X64)   { 'osx-x64'; break }
+                  default { throw "Unsupported macOS architecture: $architecture" }
+              }
+          } else {
+              throw 'Unsupported runner platform.'
           }
+
+          Write-Host "Building RID: $rid"
+
+          $output = "./lib/netstandard2.0/$rid"
+          Remove-Item $output -Recurse -Force -ErrorAction SilentlyContinue
 
           dotnet publish ./src/PSSqliteRoH.Sqlite/PSSqliteRoH.Sqlite.csproj `
             --configuration Release `
             --framework netstandard2.0 `
             --runtime $rid `
             --self-contained false `
-            --output "./lib/netstandard2.0/$rid"
+            --output $output
+
+            Write-Host "OS: $($IsMacOS ? 'macOS' : 'other')"
+            Write-Host "Architecture: $architecture"
+            Write-Host "Assembly folder: $output"
+
+            Get-ChildItem $output | Select-Object Name, Length
 
       - name: Install Pester
         run: Install-Module Pester -Force -Scope CurrentUser
