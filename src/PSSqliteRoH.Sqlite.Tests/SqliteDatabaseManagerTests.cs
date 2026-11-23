@@ -71,6 +71,9 @@ namespace PSSqliteRoH.Sqlite.Tests
         // This method runs after each test and cleans up the temporary folder.
         public void Dispose()
         {
+            // Release pooled connections.
+            SqliteConnection.ClearAllPools();
+
             if (Directory.Exists(_tempDirectory))
             {
                 Directory.Delete(_tempDirectory, recursive: true);
