@@ -1,39 +1,100 @@
-name: Build
+name: Test and Build
 
 permissions:
   contents: write
 
 on:
   push:
+    paths-ignore:
+      - 'lib/**'
   workflow_dispatch:
 
 jobs:
+  dotnet-tests:
+    name: C# Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run C# tests
+        run: dotnet test ./src/PSSqliteRoH.Sqlite.Tests/ --configuration Release --verbosity normal
+
+  pester-tests:
+    name: Pester Tests (${{ matrix.name }})
+    needs: dotnet-tests
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - name: Linux pwsh
+            os: ubuntu-latest
+            shell: pwsh
+          - name: macOS pwsh
+            os: macos-latest
+            shell: pwsh
+          - name: Windows pwsh
+            os: windows-latest
+            shell: pwsh
+          - name: Windows PowerShell
+            os: windows-latest
+            shell: powershell
+
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Pester
+        run: Install-Module Pester -Force -Scope CurrentUser
+
+      - name: Run Pester tests
+        run: Invoke-Pester -Path ./tests/ -Output Detailed
+
   build:
+    name: Build and publish module
+    needs: pester-tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          fetch-depth: 0
+          dotnet-version: '8.0.x'
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y make
+      - name: Install Make
+        run: sudo apt-get update && sudo apt-get install -y make
 
-      - name: Build module via Makefile
+      - name: Build module package
         run: make
 
-      - name: Commit built module
+      - name: Publish built module
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Add only the build output directory
           git add lib/
 
-          # Skip commit if nothing changed
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
